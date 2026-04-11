@@ -153,15 +153,25 @@ class ComposeController extends Controller
     private function showCompose(array $compose): mixed
     {
         /** @var ImapGuard $guard */
-        $guard = auth('web');
+        $guard    = auth('web');
+        $settings = userSettings();
+        $folders  = $this->fetchFolders($guard);
 
-        $folders = $this->fetchFolders($guard);
+        // Inject signature — placed before any quoted body text
+        $sig = trim($settings->signature ?? '');
+        if ($sig !== '') {
+            $sigBlock          = "\n\n-- \n{$sig}";
+            $existing          = $compose['body'];
+            $compose['body']   = $existing !== ''
+                ? $sigBlock . "\n\n" . $existing
+                : $sigBlock;
+        }
 
         return view(mailView('compose.index'), array_merge($compose, [
             'folders'       => $folders,
             'currentFolder' => '',
             'fromEmail'     => $guard->user()->email,
-            'fromName'      => $guard->user()->name,
+            'fromName'      => $settings->display_name ?: $guard->user()->name,
         ]));
     }
 

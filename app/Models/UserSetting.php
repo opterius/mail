@@ -21,40 +21,40 @@
  *  For custom changes, use the template and plugin system.
  */
 
-if (!function_exists('mailView')) {
-    /**
-     * Resolve a view path within the active mail UI template.
-     *
-     * Usage: return view(mailView('inbox.index'), $data);
-     */
-    function mailView(string $view): string
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class UserSetting extends Model
+{
+    protected $table = 'user_settings';
+
+    protected $fillable = [
+        'email',
+        'display_name',
+        'signature',
+        'per_page',
+        'image_loading',
+        'reply_behavior',
+        'theme',
+        'template',
+    ];
+
+    protected $casts = [
+        'per_page' => 'integer',
+    ];
+
+    /** Default values used when no row exists yet. */
+    public static function defaults(): array
     {
-        $template = config('mail-ui.template', 'default');
-        return "templates.{$template}.{$view}";
-    }
-}
-
-if (!function_exists('userSettings')) {
-    /**
-     * Return the UserSetting row for the currently authenticated webmail user.
-     * Creates the row with defaults on first access. Cached for the lifetime of the request.
-     */
-    function userSettings(): \App\Models\UserSetting
-    {
-        static $cache = null;
-        if ($cache !== null) {
-            return $cache;
-        }
-
-        $email = auth('web')->user()?->email;
-
-        if (!$email) {
-            return new \App\Models\UserSetting(\App\Models\UserSetting::defaults());
-        }
-
-        return $cache = \App\Models\UserSetting::firstOrCreate(
-            ['email' => $email],
-            \App\Models\UserSetting::defaults(),
-        );
+        return [
+            'display_name'   => '',
+            'signature'      => '',
+            'per_page'       => 25,
+            'image_loading'  => 'ask',
+            'reply_behavior' => 'reply',
+            'theme'          => 'light',
+            'template'       => null,
+        ];
     }
 }

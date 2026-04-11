@@ -10,7 +10,7 @@
  * Permissions of this strongest copyleft license are conditioned on making available complete source code
  * of licensed works and modifications, which include larger works using a licensed work, under the same license.
  * Copyright and license notices must be preserved. Contributors provide an express grant of patent rights.
- * When a modified version is used to provide a service over a network, the complete source code of the
+ * When aimited version is used to provide a service over a network, the complete source code of the
  * modified version must be made available.
  *
  * @copyright    Copyright (c) Host Server SRL (Opterius)
@@ -23,17 +23,36 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\UserSetting;
 use Illuminate\Http\Request;
 
 class SettingController extends Controller
 {
-    public function index()
+    public function index(): mixed
     {
-        return view(mailView('settings.index'));
+        return view(mailView('settings.index'), [
+            'settings'      => userSettings(),
+            'folders'       => [],
+            'currentFolder' => '',
+        ]);
     }
 
-    public function update(Request $request)
+    public function update(Request $request): mixed
     {
+        $data = $request->validate([
+            'display_name'   => ['nullable', 'string', 'max:255'],
+            'signature'      => ['nullable', 'string', 'max:5000'],
+            'per_page'       => ['required', 'integer', 'in:10,25,50,100'],
+            'image_loading'  => ['required', 'string', 'in:ask,always,never'],
+            'reply_behavior' => ['required', 'string', 'in:reply,reply_all'],
+            'theme'          => ['required', 'string', 'in:light,dark'],
+        ]);
+
+        UserSetting::updateOrCreate(
+            ['email' => auth('web')->user()->email],
+            $data,
+        );
+
         return redirect()->route('settings')->with('success', 'Settings saved.');
     }
 }

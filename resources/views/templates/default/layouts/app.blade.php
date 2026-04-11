@@ -8,7 +8,7 @@
  | @author   Iosif Gabriel Chimilevschi <office@opterius.com>
 --}}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="{{ userSettings()->theme === 'dark' ? 'dark' : '' }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -21,24 +21,25 @@
             theme: { extend: { colors: { brand: '#f97316' } } }
         }
     </script>
+    <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="min-h-screen bg-gray-100 text-gray-900">
+<body class="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
 <div class="flex h-screen overflow-hidden">
 
     {{-- ------------------------------------------------------------------ --}}
     {{-- Sidebar                                                              --}}
     {{-- ------------------------------------------------------------------ --}}
-    <aside class="w-56 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
+    <aside class="w-56 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
 
         {{-- Logo --}}
-        <div class="px-4 py-4 border-b border-gray-100 flex items-center gap-2">
+        <div class="px-4 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
             <div class="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center flex-shrink-0">
                 <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                 </svg>
             </div>
-            <span class="font-semibold text-sm text-gray-800 truncate">Opterius Mail</span>
+            <span class="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate">Opterius Mail</span>
         </div>
 
         {{-- Compose button --}}
@@ -58,7 +59,6 @@
                 $sidebarFolders = $folders ?? [];
                 $currentFolder  = $currentFolder ?? 'INBOX';
 
-                // Map IMAP attributes → friendly display names and icons
                 $folderMeta = static function (array $f): array {
                     $attrs = $f['attributes'] ?? [];
                     $name  = $f['name'];
@@ -72,7 +72,7 @@
                     if (str_contains($upper, 'SENT'))              return ['label' => 'Sent',   'icon' => 'sent'];
                     if (str_contains($upper, 'DRAFT'))             return ['label' => 'Drafts', 'icon' => 'draft'];
                     if (str_contains($upper, 'TRASH') || str_contains($upper, 'DELETED')) return ['label' => 'Trash', 'icon' => 'trash'];
-                    if (str_contains($upper, 'JUNK') || str_contains($upper, 'SPAM'))     return ['label' => 'Spam',  'icon' => 'spam'];
+                    if (str_contains($upper, 'JUNK')  || str_contains($upper, 'SPAM'))    return ['label' => 'Spam',  'icon' => 'spam'];
                     return ['label' => $name, 'icon' => 'folder'];
                 };
             @endphp
@@ -80,43 +80,46 @@
             @if(!empty($sidebarFolders))
                 @foreach($sidebarFolders as $f)
                     @php
-                        $meta    = $folderMeta($f);
+                        $meta     = $folderMeta($f);
                         $isActive = $currentFolder === $f['name'];
-                        $unseen  = $f['unseen'] ?? 0;
-                        $href    = $f['name'] === 'INBOX'
+                        $unseen   = $f['unseen'] ?? 0;
+                        $href     = $f['name'] === 'INBOX'
                             ? route('inbox')
                             : route('folder', ['folder' => rawurlencode($f['name'])]);
                     @endphp
                     <a href="{{ $href }}"
                        class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm transition-colors
-                              {{ $isActive ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-700 hover:bg-gray-100' }}">
+                              {{ $isActive
+                                  ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 font-medium'
+                                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
                         <span class="flex items-center gap-2 min-w-0">
                             @include(mailView('partials.folder-icon'), ['icon' => $meta['icon'], 'active' => $isActive])
                             <span class="truncate">{{ $meta['label'] }}</span>
                         </span>
                         @if($unseen > 0)
                             <span class="flex-shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded-full
-                                         {{ $isActive ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-600' }}">
+                                         {{ $isActive
+                                             ? 'bg-orange-500 text-white'
+                                             : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300' }}">
                                 {{ $unseen > 99 ? '99+' : $unseen }}
                             </span>
                         @endif
                     </a>
                 @endforeach
             @else
-                {{-- Fallback when folder list is unavailable --}}
                 <a href="{{ route('inbox') }}"
-                   class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100
-                          {{ request()->routeIs('inbox') ? 'bg-orange-50 text-orange-600 font-medium' : '' }}">
+                   class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm
+                          {{ request()->routeIs('inbox') ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
                     Inbox
                 </a>
             @endif
         </nav>
 
         {{-- Bottom links --}}
-        <div class="px-3 py-3 border-t border-gray-100 space-y-0.5">
+        <div class="px-3 py-3 border-t border-gray-100 dark:border-gray-700 space-y-0.5">
             <a href="{{ route('search') }}"
-               class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm
-                      {{ request()->routeIs('search') ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }}">
+               class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors
+                      {{ request()->routeIs('search') ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 font-medium' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
@@ -124,8 +127,8 @@
                 Search
             </a>
             <a href="{{ route('contacts') }}"
-               class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm
-                      {{ request()->routeIs('contacts*') ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700' }}">
+               class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors
+                      {{ request()->routeIs('contacts*') ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 font-medium' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -133,7 +136,8 @@
                 Contacts
             </a>
             <a href="{{ route('settings') }}"
-               class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700">
+               class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors
+                      {{ request()->routeIs('settings*') ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 font-medium' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -144,7 +148,8 @@
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit"
-                        class="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700">
+                        class="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors
+                               text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
@@ -155,18 +160,48 @@
         </div>
 
         {{-- Current user --}}
-        <div class="px-4 py-3 border-t border-gray-100 bg-gray-50">
-            <p class="text-xs text-gray-500 truncate">{{ auth('web')->user()?->email }}</p>
+        <div class="px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-950">
+            <p class="text-xs text-gray-500 dark:text-gray-500 truncate">{{ auth('web')->user()?->email }}</p>
         </div>
     </aside>
 
     {{-- ------------------------------------------------------------------ --}}
     {{-- Main content                                                         --}}
     {{-- ------------------------------------------------------------------ --}}
-    <main class="flex-1 overflow-y-auto bg-white">
+    <main class="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
         @yield('content')
     </main>
 
 </div>
+
+{{-- ------------------------------------------------------------------ --}}
+{{-- Global keyboard shortcuts                                            --}}
+{{-- ------------------------------------------------------------------ --}}
+<script>
+(function () {
+    function isTyping(el) {
+        const tag = el.tagName;
+        return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (isTyping(e.target)) return;
+        if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+        switch (e.key) {
+            case 'c':
+                window.location.href = '{{ route('compose') }}';
+                break;
+            case '/':
+                e.preventDefault();
+                window.location.href = '{{ route('search') }}';
+                break;
+        }
+    });
+})();
+</script>
+
+@stack('scripts')
+
 </body>
 </html>

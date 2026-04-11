@@ -19,15 +19,15 @@
 <div class="flex flex-col h-full">
 
     {{-- Toolbar --}}
-    <div class="flex items-center justify-between px-6 py-3 border-b border-gray-100 bg-white sticky top-0 z-10">
+    <div class="flex items-center justify-between px-6 py-3 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 sticky top-0 z-10">
         <div class="flex items-center gap-3">
-            <h1 class="text-sm font-semibold text-gray-800">{{ $folderLabel }}</h1>
+            <h1 class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ $folderLabel }}</h1>
             @if(($total ?? 0) > 0)
-                <span class="text-xs text-gray-400">{{ number_format($total) }}</span>
+                <span class="text-xs text-gray-400 dark:text-gray-500">{{ number_format($total) }}</span>
             @endif
         </div>
         <a href="{{ route('compose') }}"
-           class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">
+           class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
@@ -38,31 +38,31 @@
     {{-- Error state --}}
     @if(!empty($error))
         <div class="flex flex-col items-center justify-center flex-1 px-6 py-20 text-center">
-            <div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center mb-4">
+            <div class="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4">
                 <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
                 </svg>
             </div>
-            <p class="text-sm font-medium text-gray-700">Could not connect to mail server</p>
-            <p class="text-xs text-gray-400 mt-1 max-w-xs">{{ $error }}</p>
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Could not connect to mail server</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-xs">{{ $error }}</p>
         </div>
 
     {{-- Empty state --}}
     @elseif(empty($messages))
         <div class="flex flex-col items-center justify-center flex-1 px-6 py-20 text-center">
-            <div class="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-4">
-                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                <svg class="w-6 h-6 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                 </svg>
             </div>
-            <p class="text-sm font-medium text-gray-500">No messages in {{ $folderLabel }}</p>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">No messages in {{ $folderLabel }}</p>
         </div>
 
     {{-- Message list --}}
     @else
-        <ul class="divide-y divide-gray-100">
+        <ul class="divide-y divide-gray-100 dark:divide-gray-800">
             @foreach($messages as $msg)
                 @php
                     $fromName = $msg['from']['name'] ?: $msg['from']['email'];
@@ -73,7 +73,7 @@
                 @endphp
                 <li>
                     <a href="{{ $href }}"
-                       class="flex items-start gap-3 px-6 py-3.5 hover:bg-gray-50 transition-colors group relative">
+                       class="flex items-start gap-3 px-6 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group relative">
 
                         {{-- Unread dot --}}
                         <div class="flex-shrink-0 mt-1.5 w-2 h-2 rounded-full
@@ -81,8 +81,8 @@
                         </div>
 
                         {{-- Avatar initial --}}
-                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center
-                                    text-xs font-semibold text-gray-500 uppercase select-none">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center
+                                    text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase select-none">
                             {{ mb_substr($fromName, 0, 1, 'UTF-8') }}
                         </div>
 
@@ -90,15 +90,15 @@
                         <div class="flex-1 min-w-0">
                             <div class="flex items-baseline justify-between gap-2">
                                 <span class="text-sm truncate
-                                             {{ $msg['seen'] ? 'text-gray-600' : 'font-semibold text-gray-900' }}">
+                                             {{ $msg['seen'] ? 'text-gray-600 dark:text-gray-400' : 'font-semibold text-gray-900 dark:text-gray-100' }}">
                                     {{ $fromName }}
                                 </span>
-                                <span class="flex-shrink-0 text-xs text-gray-400">
+                                <span class="flex-shrink-0 text-xs text-gray-400 dark:text-gray-500">
                                     {{ $msg['date_formatted'] ?? '' }}
                                 </span>
                             </div>
                             <p class="text-sm truncate mt-0.5
-                                      {{ $msg['seen'] ? 'text-gray-500' : 'font-medium text-gray-800' }}">
+                                      {{ $msg['seen'] ? 'text-gray-500 dark:text-gray-500' : 'font-medium text-gray-800 dark:text-gray-200' }}">
                                 {{ $msg['subject'] }}
                             </p>
                         </div>
@@ -117,10 +117,9 @@
             @endforeach
         </ul>
 
-        {{-- Load-more hint when folder has more messages --}}
         @if(($total ?? 0) > count($messages))
-            <div class="px-6 py-4 text-center border-t border-gray-100">
-                <p class="text-xs text-gray-400">
+            <div class="px-6 py-4 text-center border-t border-gray-100 dark:border-gray-800">
+                <p class="text-xs text-gray-400 dark:text-gray-500">
                     Showing last {{ count($messages) }} of {{ number_format($total) }} messages
                 </p>
             </div>
