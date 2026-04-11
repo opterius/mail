@@ -28,7 +28,7 @@ use RuntimeException;
 /**
  * Minimal pure-PHP IMAP client using stream sockets.
  * No ext-imap required. Implements enough of RFC 3501 for
- * authentication and basic mailbox operations.
+ * authentication, folder listing, and message header fetching.
  */
 class ImapConnection
 {
@@ -36,12 +36,15 @@ class ImapConnection
     private mixed $stream = null;
     private int $seq = 0;
 
+    // ------------------------------------------------------------------
+    // Connection lifecycle
+    // ------------------------------------------------------------------
+
     public function connect(string $host, int $port, ?string $encryption, bool $validateCert = false, int $timeout = 10): void
     {
         $scheme = match (strtolower((string) $encryption)) {
-            'ssl'           => 'ssl',
-            'tls', 'imaps' => 'ssl',
-            default         => 'tcp',
+            'ssl', 'tls', 'imaps' => 'ssl',
+            default               => 'tcp',
         };
 
         $context = stream_context_create([
@@ -63,7 +66,7 @@ class ImapConnection
 
         $greeting = $this->readline();
 
-        if (!str_starts_with($greeting, '* OK') && !str_starts_with($greeting, '* PREAUTH')) {
+        if (!str_starts_with((string) $greeting, '* OK') && !str_starts_with((string) $greeting, '* PREAUTH')) {
             $this->close();
             throw new RuntimeException("Unexpected IMAP greeting: {$greeting}");
         }
@@ -96,21 +99,182 @@ class ImapConnection
     }
 
     // ------------------------------------------------------------------
+    // High-level mailbox operations
+    // ------------------------------------------------------------------
+
+    /**
+     * LIST all selectable folders.
+     *
+     * @return array<array{name: string, attributes: string[], delimiter: string}>
+     */
+    public function listFolders(string $ref = '', string $pattern = '*'): array
+    {
+        $r      = '"' . addcslashes($ref, '"\\') . '"';
+        $p      = '"' . addcslashes($pattern, '"\\') . '"';
+        $result = $this->command("LIST {$r} {$p}");
+
+        $folders = [];
+        foreach ($result['untagged'] as $line) {
+            // * LIST (\attributes) "delimiter" "folder-name"  OR  atom
+            if (!preg_match('/^\* LIST \(([^)]*)\) (\S+) (.+)$/i', $line, $m)) {
+                continue;
+            }
+
+            $attrs = array_values(array_filter(explode(' ', strtolower(trim($m[1])))));
+            $name  = trim($m[3], '"');
+
+            // Skip non-selectable containers (\Noselect)
+            if (in_array('\\noselect', $attrs, true)) {
+                continue;
+            }
+
+            $folders[] = [
+                'name'       => $name,
+                'attributes' => $attrs,
+                'delimiter'  => trim($m[2], '"'),
+            ];
+        }
+
+        // INBOX first, then alphabetical
+        usort($folders, static function (array $a, array $b): int {
+            if (strtoupper($a['name']) === 'INBOX') {
+                return -1;
+            }
+            if (strtoupper($b['name']) === 'INBOX') {
+                return 1;
+            }
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        return $folders;
+    }
+
+    /**
+     * Get MESSAGES and UNSEEN counts for a folder without selecting it.
+     *
+     * @return array{messages: int, unseen: int}
+     */
+    public function getFolderStatus(string $folder): array
+    {
+        $f      = '"' . addcslashes($folder, '"\\') . '"';
+        $result = $this->command("STATUS {$f} (MESSAGES UNSEEN)");
+
+        $stats = ['messages' => 0, 'unseen' => 0];
+        foreach ($result['untagged'] as $line) {
+            if (preg_match('/\bMESSAGES (\d+)/i', $line, $m)) {
+                $stats['messages'] = (int) $m[1];
+            }
+            if (preg_match('/\bUNSEEN (\d+)/i', $line, $m)) {
+                $stats['unseen'] = (int) $m[1];
+            }
+        }
+        return $stats;
+    }
+
+    /**
+     * SELECT a mailbox and return basic stats.
+     * Must be called before fetchMessageHeaders().
+     *
+     * @return array{exists: int, uidvalidity: int, uidnext: int}
+     */
+    public function selectFolder(string $folder): array
+    {
+        $f      = '"' . addcslashes($folder, '"\\') . '"';
+        $result = $this->command("SELECT {$f}");
+
+        $stats = ['exists' => 0, 'uidvalidity' => 0, 'uidnext' => 0];
+        foreach ($result['untagged'] as $line) {
+            if (preg_match('/^\* (\d+) EXISTS/i', $line, $m)) {
+                $stats['exists'] = (int) $m[1];
+            } elseif (preg_match('/\[UIDVALIDITY (\d+)\]/i', $line, $m)) {
+                $stats['uidvalidity'] = (int) $m[1];
+            } elseif (preg_match('/\[UIDNEXT (\d+)\]/i', $line, $m)) {
+                $stats['uidnext'] = (int) $m[1];
+            }
+        }
+
+        return $stats;
+    }
+
+    /**
+     * Fetch message headers for a sequence range (e.g. "101:150").
+     * Must call selectFolder() first.
+     *
+     * Returns messages newest-first. Each entry:
+     *   seq, uid, flags[], seen, flagged, from{name,email}, subject, date_raw
+     *
+     * @return array<array{seq: int, uid: int, flags: string[], seen: bool, flagged: bool, from: array{name: string, email: string}, subject: string, date_raw: string}>
+     */
+    public function fetchMessageHeaders(string $sequence): array
+    {
+        $result = $this->command(
+            "FETCH {$sequence} (UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])"
+        );
+
+        $messages = [];
+
+        foreach ($result['untagged'] as $line) {
+            if (!preg_match('/^\* (\d+) FETCH /i', $line, $sm)) {
+                continue;
+            }
+            $seq = (int) $sm[1];
+
+            // UID
+            $uid = 0;
+            if (preg_match('/\bUID (\d+)/i', $line, $m)) {
+                $uid = (int) $m[1];
+            }
+
+            // FLAGS
+            $flags = [];
+            if (preg_match('/\bFLAGS \(([^)]*)\)/i', $line, $m)) {
+                $flags = array_values(array_filter(explode(' ', trim($m[1]))));
+            }
+
+            // Extract header block using the literal length: {N}\r\n<N bytes>
+            $rawHeaders = '';
+            if (preg_match('/\{(\d+)\}\r\n/', $line, $lm, PREG_OFFSET_CAPTURE)) {
+                $n          = (int) $lm[1][0];
+                $dataStart  = (int) $lm[0][1] + strlen($lm[0][0]);
+                $rawHeaders = substr($line, $dataStart, $n);
+            }
+
+            $messages[$seq] = [
+                'seq'      => $seq,
+                'uid'      => $uid,
+                'flags'    => $flags,
+                'seen'     => in_array('\\Seen', $flags, true),
+                'flagged'  => in_array('\\Flagged', $flags, true),
+                'from'     => $this->parseFrom($this->decodeMimeHeader($this->parseHeader($rawHeaders, 'From'))),
+                'subject'  => $this->decodeMimeHeader($this->parseHeader($rawHeaders, 'Subject')) ?: '(no subject)',
+                'date_raw' => $this->parseHeader($rawHeaders, 'Date'),
+            ];
+        }
+
+        // Newest first (highest seq = most recent message)
+        krsort($messages);
+
+        return array_values($messages);
+    }
+
+    // ------------------------------------------------------------------
     // Raw protocol helpers
     // ------------------------------------------------------------------
 
-    /** Send a tagged command and collect lines until the tagged response. */
+    /**
+     * Send a tagged command and collect all lines until the tagged response.
+     * Uses readResponse() which transparently expands IMAP literals.
+     */
     public function command(string $cmd): array
     {
-        $tag  = $this->nextTag();
-        $line = "{$tag} {$cmd}\r\n";
-        fwrite($this->stream, $line);
+        $tag = $this->nextTag();
+        fwrite($this->stream, "{$tag} {$cmd}\r\n");
 
         $untagged = [];
         $status   = null;
 
         while (true) {
-            $raw = $this->readline();
+            $raw = $this->readResponse();
 
             if ($raw === null) {
                 break;
@@ -133,7 +297,7 @@ class ImapConnection
         ];
     }
 
-    /** Read a single line from the stream. */
+    /** Read a single line from the stream (CRLF stripped). */
     public function readline(): ?string
     {
         if (!$this->stream) {
@@ -146,7 +310,43 @@ class ImapConnection
         return rtrim($line, "\r\n");
     }
 
-    /** Write raw data to the stream. */
+    /**
+     * Read a complete IMAP response, expanding inline literals.
+     * When a line ends in {N}, reads exactly N more bytes then the next line.
+     */
+    private function readResponse(): ?string
+    {
+        $line = $this->readline();
+        if ($line === null) {
+            return null;
+        }
+
+        // Expand IMAP literals: {N} at end of line → read N bytes + continuation
+        while (preg_match('/\{(\d+)\}$/', $line, $m)) {
+            $n    = (int) $m[1];
+            $data = $this->readBytes($n);
+            $next = $this->readline();
+            $line = $line . "\r\n" . $data . ($next ?? '');
+        }
+
+        return $line;
+    }
+
+    /** Read exactly $n bytes from the stream. */
+    private function readBytes(int $n): string
+    {
+        $buf = '';
+        while (strlen($buf) < $n) {
+            $chunk = fread($this->stream, $n - strlen($buf));
+            if ($chunk === false || $chunk === '') {
+                break;
+            }
+            $buf .= $chunk;
+        }
+        return $buf;
+    }
+
+    /** Write raw data to the stream (for APPEND, literal commands, etc.). */
     public function write(string $data): void
     {
         fwrite($this->stream, $data);
@@ -169,5 +369,81 @@ class ImapConnection
     private function nextTag(): string
     {
         return 'A' . str_pad((string) ++$this->seq, 4, '0', STR_PAD_LEFT);
+    }
+
+    // ------------------------------------------------------------------
+    // Header parsing helpers
+    // ------------------------------------------------------------------
+
+    /**
+     * Extract a single header value from a raw header block.
+     * Handles folded (multi-line) headers per RFC 2822.
+     */
+    private function parseHeader(string $raw, string $name): string
+    {
+        if (preg_match(
+            '/^' . preg_quote($name, '/') . ':\s*(.*(?:\r?\n[ \t].+)*)/mi',
+            $raw,
+            $m
+        )) {
+            // Unfold: collapse CRLF + leading whitespace into a single space
+            return trim(preg_replace('/\r?\n[ \t]+/', ' ', $m[1]) ?? '');
+        }
+        return '';
+    }
+
+    /**
+     * Parse a From header value into name + email.
+     *
+     * @return array{name: string, email: string}
+     */
+    private function parseFrom(string $from): array
+    {
+        $from = trim($from);
+        if ($from === '') {
+            return ['name' => '', 'email' => ''];
+        }
+
+        // "Display Name" <email>  or  Display Name <email>
+        if (preg_match('/^"?(.+?)"?\s*<([^>]+)>$/', $from, $m)) {
+            return ['name' => trim($m[1], ' "'), 'email' => trim($m[2])];
+        }
+
+        // <email>
+        if (preg_match('/^<([^>]+)>$/', $from, $m)) {
+            return ['name' => $m[1], 'email' => $m[1]];
+        }
+
+        // Bare email or name
+        return ['name' => $from, 'email' => $from];
+    }
+
+    /**
+     * Decode MIME-encoded header value (=?charset?B/Q?...?=).
+     */
+    private function decodeMimeHeader(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+
+        if (function_exists('mb_decode_mimeheader')) {
+            return mb_decode_mimeheader($value);
+        }
+
+        // Fallback: decode =?charset?B|Q?text?= sequences manually
+        return preg_replace_callback(
+            '/=\?([^?]+)\?([BQbq])\?([^?]*)\?=/',
+            static function (array $m): string {
+                $charset  = $m[1];
+                $encoding = strtoupper($m[2]);
+                $text     = $m[3];
+                $decoded  = $encoding === 'B'
+                    ? base64_decode($text)
+                    : quoted_printable_decode(str_replace('_', ' ', $text));
+                return mb_convert_encoding($decoded, 'UTF-8', $charset);
+            },
+            $value
+        ) ?? $value;
     }
 }

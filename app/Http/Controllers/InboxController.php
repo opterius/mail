@@ -23,23 +23,101 @@
 
 namespace App\Http\Controllers;
 
+use App\Auth\ImapGuard;
+use App\Services\ImapConnection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class InboxController extends Controller
 {
-    public function index(Request $request)
+    private const PER_PAGE = 50;
+
+    public function index(Request $request): mixed
     {
+        return $this->showFolder('INBOX', $request);
+    }
+
+    public function folder(Request $request, string $folder): mixed
+    {
+        return $this->showFolder($folder, $request);
+    }
+
+    // ------------------------------------------------------------------
+
+    private function showFolder(string $folder, Request $request): mixed
+    {
+        /** @var ImapGuard $guard */
+        $guard    = auth('web');
+        $email    = $guard->user()->email;
+        $password = $guard->getImapPassword();
+
+        $imap = new ImapConnection();
+
+        try {
+            $imap->connect(
+                host:         config('imap.host'),
+                port:         config('imap.port'),
+                encryption:   config('imap.encryption'),
+                validateCert: config('imap.validate_cert', false),
+                timeout:      config('imap.timeout', 10),
+            );
+
+            $imap->login($email, $password);
+
+            // Folders for sidebar — fetch STATUS (unseen) for each
+            $rawFolders = $imap->listFolders();
+            $folders    = array_map(
+                fn(array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
+                $rawFolders
+            );
+
+            // Select the requested folder and fetch headers
+            $stats    = $imap->selectFolder($folder);
+            $total    = $stats['exists'];
+            $messages = [];
+
+            if ($total > 0) {
+                $from     = max(1, $total - self::PER_PAGE + 1);
+                $messages = $imap->fetchMessageHeaders("{$from}:{$total}");
+                $messages = $this->formatDates($messages);
+            }
+
+            $imap->logout();
+
+        } catch (\Throwable $e) {
+            $imap->close();
+            return view(mailView('inbox.index'), [
+                'error'         => $e->getMessage(),
+                'folders'       => [],
+                'currentFolder' => $folder,
+                'messages'      => [],
+                'total'         => 0,
+            ]);
+        }
+
         return view(mailView('inbox.index'), [
-            'folder'   => 'INBOX',
-            'messages' => [],
+            'folders'       => $folders,
+            'currentFolder' => $folder,
+            'messages'      => $messages,
+            'total'         => $total,
         ]);
     }
 
-    public function folder(Request $request, string $folder)
+    /** Add a human-readable date_formatted field to each message. */
+    private function formatDates(array $messages): array
     {
-        return view(mailView('inbox.index'), [
-            'folder'   => $folder,
-            'messages' => [],
-        ]);
+        $now = Carbon::now();
+
+        return array_map(function (array $msg) use ($now): array {
+            try {
+                $dt = Carbon::parse($msg['date_raw']);
+                $msg['date_formatted'] = $dt->isToday()
+                    ? $dt->format('g:i A')
+                    : ($dt->isSameYear($now) ? $dt->format('M j') : $dt->format('M j, Y'));
+            } catch (\Throwable) {
+                $msg['date_formatted'] = $msg['date_raw'];
+            }
+            return $msg;
+        }, $messages);
     }
 }
