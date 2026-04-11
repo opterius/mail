@@ -21,15 +21,31 @@
             theme: { extend: { colors: { brand: '#f97316' } } }
         }
     </script>
-    <style>[x-cloak]{display:none!important}</style>
+    <style>
+        [x-cloak]{display:none!important}
+        /* Sidebar hidden off-screen on mobile before Alpine initialises */
+        @media (max-width: 767px) { #mail-sidebar { transform: translateX(-100%); } }
+    </style>
 </head>
 <body class="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
-<div class="flex h-screen overflow-hidden">
+<div class="flex h-screen overflow-hidden" x-data="{ sidebarOpen: false }">
+
+    {{-- ------------------------------------------------------------------ --}}
+    {{-- Mobile backdrop                                                      --}}
+    {{-- ------------------------------------------------------------------ --}}
+    <div x-show="sidebarOpen" x-cloak
+         @click="sidebarOpen = false"
+         class="fixed inset-0 z-20 bg-black/40 md:hidden"></div>
 
     {{-- ------------------------------------------------------------------ --}}
     {{-- Sidebar                                                              --}}
     {{-- ------------------------------------------------------------------ --}}
-    <aside class="w-56 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+    <aside id="mail-sidebar"
+           class="fixed inset-y-0 left-0 z-30 w-64 flex flex-col flex-shrink-0
+                  bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700
+                  transition-transform duration-200 ease-in-out
+                  md:relative md:w-56 md:translate-x-0"
+           :class="sidebarOpen ? 'translate-x-0' : ''">
 
         {{-- Logo --}}
         <div class="px-4 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
@@ -40,6 +56,13 @@
                 </svg>
             </div>
             <span class="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate">Opterius Mail</span>
+            {{-- Close button (mobile only) --}}
+            <button @click="sidebarOpen = false"
+                    class="ml-auto p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 md:hidden transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
         </div>
 
         {{-- Compose button --}}
@@ -88,6 +111,7 @@
                             : route('folder', ['folder' => rawurlencode($f['name'])]);
                     @endphp
                     <a href="{{ $href }}"
+                       @click="sidebarOpen = false"
                        class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm transition-colors
                               {{ $isActive
                                   ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 font-medium'
@@ -107,7 +131,7 @@
                     </a>
                 @endforeach
             @else
-                <a href="{{ route('inbox') }}"
+                <a href="{{ route('inbox') }}" @click="sidebarOpen = false"
                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm
                           {{ request()->routeIs('inbox') ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
                     Inbox
@@ -166,11 +190,43 @@
     </aside>
 
     {{-- ------------------------------------------------------------------ --}}
-    {{-- Main content                                                         --}}
+    {{-- Right panel (mobile topbar + main content)                           --}}
     {{-- ------------------------------------------------------------------ --}}
-    <main class="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
-        @yield('content')
-    </main>
+    <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
+
+        {{-- Mobile topbar --}}
+        <div class="md:hidden flex items-center gap-3 h-14 px-4 border-b border-gray-200 dark:border-gray-700
+                    bg-white dark:bg-gray-900 flex-shrink-0">
+            <button @click="sidebarOpen = true"
+                    class="p-1.5 rounded-lg text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            <div class="flex items-center gap-2 flex-1 min-w-0">
+                <div class="w-6 h-6 rounded-md bg-orange-500 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <span class="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate">@yield('title', 'Inbox')</span>
+            </div>
+            <a href="{{ route('compose') }}"
+               class="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Compose
+            </a>
+        </div>
+
+        {{-- Main content --}}
+        <main class="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+            @yield('content')
+        </main>
+
+    </div>
 
 </div>
 
