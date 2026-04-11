@@ -24,38 +24,45 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class UserSetting extends Model
+class MailGroup extends Model
 {
-    protected $table = 'user_settings';
+    protected $table = 'mail_groups';
 
     protected $fillable = [
-        'email',
-        'group_id',
-        'display_name',
-        'signature',
-        'per_page',
-        'image_loading',
-        'reply_behavior',
-        'theme',
-        'template',
+        'name',
+        'description',
+        'max_recipients',
+        'hourly_limit',
+        'daily_limit',
+        'weekly_limit',
+        'monthly_limit',
     ];
 
     protected $casts = [
-        'per_page' => 'integer',
+        'max_recipients' => 'integer',
+        'hourly_limit'   => 'integer',
+        'daily_limit'    => 'integer',
+        'weekly_limit'   => 'integer',
+        'monthly_limit'  => 'integer',
     ];
 
-    /** Default values used when no row exists yet. */
-    public static function defaults(): array
+    public function members(): HasMany
     {
-        return [
-            'display_name'   => '',
-            'signature'      => '',
-            'per_page'       => 25,
-            'image_loading'  => 'ask',
-            'reply_behavior' => 'reply',
-            'theme'          => 'light',
-            'template'       => null,
-        ];
+        return $this->hasMany(UserSetting::class, 'group_id');
+    }
+
+    /**
+     * Human-readable limit string for display (e.g. "100/day, 500/month").
+     */
+    public function limitsLabel(): string
+    {
+        $parts = [];
+        if ($this->hourly_limit !== null)  $parts[] = "{$this->hourly_limit}/hr";
+        if ($this->daily_limit !== null)   $parts[] = "{$this->daily_limit}/day";
+        if ($this->weekly_limit !== null)  $parts[] = "{$this->weekly_limit}/wk";
+        if ($this->monthly_limit !== null) $parts[] = "{$this->monthly_limit}/mo";
+        return $parts ? implode(', ', $parts) : 'Unlimited';
     }
 }

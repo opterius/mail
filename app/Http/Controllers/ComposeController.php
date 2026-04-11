@@ -24,6 +24,7 @@
 namespace App\Http\Controllers;
 
 use App\Auth\ImapGuard;
+use App\Models\MailSendLog;
 use App\Services\ImapConnection;
 use App\Services\MimeParser;
 use App\Services\SmtpSender;
@@ -120,6 +121,15 @@ class ComposeController extends Controller
         $name     = $guard->user()->name;
         $password = $guard->getImapPassword();
 
+        $recipientCount = count(array_filter(
+            array_merge(
+                preg_split('/[,;]/', $data['to']) ?: [],
+                preg_split('/[,;]/', $data['cc'] ?? '') ?: [],
+                preg_split('/[,;]/', $data['bcc'] ?? '') ?: [],
+            ),
+            fn($a) => trim($a) !== '',
+        ));
+
         try {
             (new SmtpSender())->send(
                 fromEmail: $email,
@@ -131,7 +141,23 @@ class ComposeController extends Controller
                 cc:        $data['cc'] ?? '',
                 bcc:       $data['bcc'] ?? '',
             );
+
+            MailSendLog::record(
+                email:          $email,
+                recipientCount: max(1, $recipientCount),
+                subject:        $data['subject'] ?? '',
+                ip:             $request->ip(),
+                status:         'sent',
+            );
         } catch (\Throwable $e) {
+            MailSendLog::record(
+                email:          $email,
+                recipientCount: max(1, $recipientCount),
+                subject:        $data['subject'] ?? '',
+                ip:             $request->ip(),
+                status:         'failed',
+            );
+
             return back()
                 ->withInput()
                 ->withErrors(['send' => 'Could not send message: ' . $e->getMessage()]);

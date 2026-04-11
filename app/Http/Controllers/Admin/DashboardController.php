@@ -24,11 +24,45 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\LoginLog;
+use App\Models\MailGroup;
+use App\Models\MailSendLog;
+use Illuminate\Support\Carbon;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        return view(mailView('admin.dashboard.index'));
+        $today     = Carbon::today();
+        $weekStart = Carbon::now()->startOfWeek();
+        $monthStart= Carbon::now()->startOfMonth();
+
+        // Send stats
+        $sentToday  = MailSendLog::whereDate('created_at', $today)->where('status', 'sent')->count();
+        $sentWeek   = MailSendLog::where('created_at', '>=', $weekStart)->where('status', 'sent')->count();
+        $sentMonth  = MailSendLog::where('created_at', '>=', $monthStart)->where('status', 'sent')->count();
+        $failedToday= MailSendLog::whereDate('created_at', $today)->where('status', 'failed')->count();
+
+        // Active users: distinct senders in the last 30 days
+        $activeUsers = MailSendLog::where('created_at', '>=', Carbon::now()->subDays(30))
+            ->distinct('email')
+            ->count('email');
+
+        // Login stats
+        $loginsToday = LoginLog::whereDate('created_at', $today)->where('success', true)->count();
+        $failedLogins= LoginLog::whereDate('created_at', $today)->where('success', false)->count();
+
+        // Recent activity
+        $recentSends  = MailSendLog::orderByDesc('created_at')->limit(15)->get();
+        $recentLogins = LoginLog::orderByDesc('created_at')->limit(15)->get();
+
+        // Groups count
+        $groupCount = MailGroup::count();
+
+        return view(mailView('admin.dashboard.index'), compact(
+            'sentToday', 'sentWeek', 'sentMonth', 'failedToday',
+            'activeUsers', 'loginsToday', 'failedLogins',
+            'recentSends', 'recentLogins', 'groupCount',
+        ));
     }
 }

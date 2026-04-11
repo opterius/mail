@@ -21,25 +21,46 @@
  *  For custom changes, use the template and plugin system.
  */
 
-namespace App\Http\Controllers\Admin;
+namespace App\Models;
 
-use App\Http\Controllers\Controller;
-use App\Models\LoginLog;
-use App\Models\MailSendLog;
-use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Model;
 
-class LogController extends Controller
+class MailSendLog extends Model
 {
-    public function index(Request $request)
-    {
-        $tab = $request->query('tab', 'send');
+    public $timestamps = false;
 
-        if ($tab === 'login') {
-            $entries = LoginLog::orderByDesc('created_at')->paginate(50)->withQueryString();
-        } else {
-            $entries = MailSendLog::orderByDesc('created_at')->paginate(50)->withQueryString();
-        }
+    protected $table = 'mail_send_log';
 
-        return view(mailView('admin.logs.index'), compact('tab', 'entries'));
+    protected $fillable = [
+        'email',
+        'recipient_count',
+        'subject',
+        'ip',
+        'status',
+        'created_at',
+    ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
+    ];
+
+    /**
+     * Record a successful outbound send.
+     */
+    public static function record(
+        string $email,
+        int    $recipientCount,
+        string $subject,
+        string $ip     = '',
+        string $status = 'sent',
+    ): void {
+        static::create([
+            'email'           => $email,
+            'recipient_count' => max(1, $recipientCount),
+            'subject'         => mb_substr($subject, 0, 998),
+            'ip'              => $ip ?: null,
+            'status'          => $status,
+            'created_at'      => now(),
+        ]);
     }
 }

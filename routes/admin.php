@@ -28,6 +28,7 @@ use App\Http\Controllers\Admin\AutoresponderController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DkimController;
 use App\Http\Controllers\Admin\DomainController;
+use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Admin\QueueController;
 use App\Http\Controllers\Admin\SettingController;
@@ -58,6 +59,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('admin.auth')->group(function () {
 
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+        // Mail groups (always available, both modes)
+        Route::get('/groups', [GroupController::class, 'index'])->name('groups.index');
+        Route::post('/groups', [GroupController::class, 'store'])->name('groups.store');
+        Route::put('/groups/{mail_group}', [GroupController::class, 'update'])->name('groups.update');
+        Route::delete('/groups/{mail_group}', [GroupController::class, 'destroy'])->name('groups.destroy');
 
         // Domains
         Route::get('/domains', [DomainController::class, 'index'])->name('domains.index');

@@ -24,17 +24,32 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminSetting;
 use Illuminate\Http\Request;
 
 class SettingController extends Controller
 {
     public function index()
     {
-        return view(mailView('admin.settings.index'));
+        $settings = AdminSetting::allSettings();
+        return view(mailView('admin.settings.index'), compact('settings'));
     }
 
     public function update(Request $request)
     {
+        $data = $request->validate([
+            'webmail_name'           => ['nullable', 'string', 'max:100'],
+            'default_hourly_limit'   => ['nullable', 'integer', 'min:1'],
+            'default_daily_limit'    => ['nullable', 'integer', 'min:1'],
+            'default_weekly_limit'   => ['nullable', 'integer', 'min:1'],
+            'default_monthly_limit'  => ['nullable', 'integer', 'min:1'],
+            'default_max_recipients' => ['nullable', 'integer', 'min:1', 'max:9999'],
+        ]);
+
+        foreach ($data as $key => $value) {
+            AdminSetting::set($key, $value !== '' ? $value : null);
+        }
+
         return redirect()->route('admin.settings.index')->with('success', 'Settings saved.');
     }
 }

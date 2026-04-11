@@ -22,5 +22,6 @@
  */
 
 return [
-    'template' => env('MAIL_UI_TEMPLATE', 'default'),
+    'template'   => env('MAIL_UI_TEMPLATE', 'default'),
+    'admin_mode' => env('MAIL_ADMIN', false),
 ];

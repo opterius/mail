@@ -23,6 +23,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LoginLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -44,10 +45,14 @@ class AuthController extends Controller
         $guard = Auth::guard('web');
 
         if (!$guard->attempt($credentials)) {
+            LoginLog::record($credentials['email'], $request, false);
+
             return back()
                 ->withInput($request->only('email'))
                 ->withErrors(['email' => 'Invalid email or password.']);
         }
+
+        LoginLog::record($credentials['email'], $request, true);
 
         $request->session()->regenerate();
 

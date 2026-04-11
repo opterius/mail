@@ -21,25 +21,41 @@
  *  For custom changes, use the template and plugin system.
  */
 
-namespace App\Http\Controllers\Admin;
+namespace App\Models;
 
-use App\Http\Controllers\Controller;
-use App\Models\LoginLog;
-use App\Models\MailSendLog;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 
-class LogController extends Controller
+class LoginLog extends Model
 {
-    public function index(Request $request)
+    public $timestamps = false;
+
+    protected $table = 'login_log';
+
+    protected $fillable = [
+        'email',
+        'ip',
+        'user_agent',
+        'success',
+        'created_at',
+    ];
+
+    protected $casts = [
+        'success'    => 'boolean',
+        'created_at' => 'datetime',
+    ];
+
+    /**
+     * Record a login attempt.
+     */
+    public static function record(string $email, Request $request, bool $success): void
     {
-        $tab = $request->query('tab', 'send');
-
-        if ($tab === 'login') {
-            $entries = LoginLog::orderByDesc('created_at')->paginate(50)->withQueryString();
-        } else {
-            $entries = MailSendLog::orderByDesc('created_at')->paginate(50)->withQueryString();
-        }
-
-        return view(mailView('admin.logs.index'), compact('tab', 'entries'));
+        static::create([
+            'email'      => $email,
+            'ip'         => $request->ip(),
+            'user_agent' => mb_substr((string) $request->userAgent(), 0, 500),
+            'success'    => $success,
+            'created_at' => now(),
+        ]);
     }
 }

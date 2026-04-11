@@ -21,25 +21,27 @@
  *  For custom changes, use the template and plugin system.
  */
 
-namespace App\Http\Controllers\Admin;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-use App\Http\Controllers\Controller;
-use App\Models\LoginLog;
-use App\Models\MailSendLog;
-use Illuminate\Http\Request;
-
-class LogController extends Controller
+return new class extends Migration
 {
-    public function index(Request $request)
+    public function up(): void
     {
-        $tab = $request->query('tab', 'send');
-
-        if ($tab === 'login') {
-            $entries = LoginLog::orderByDesc('created_at')->paginate(50)->withQueryString();
-        } else {
-            $entries = MailSendLog::orderByDesc('created_at')->paginate(50)->withQueryString();
-        }
-
-        return view(mailView('admin.logs.index'), compact('tab', 'entries'));
+        Schema::create('mail_send_log', function (Blueprint $table) {
+            $table->id();
+            $table->string('email', 255)->index();
+            $table->unsignedSmallInteger('recipient_count')->default(1);
+            $table->string('subject', 998)->default('');
+            $table->string('ip', 45)->nullable();
+            $table->enum('status', ['sent', 'failed'])->default('sent');
+            $table->timestamp('created_at')->useCurrent()->index();
+        });
     }
-}
+
+    public function down(): void
+    {
+        Schema::dropIfExists('mail_send_log');
+    }
+};
