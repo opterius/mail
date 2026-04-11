@@ -24,6 +24,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'imap.auth'  => ImapAuthenticated::class,
             'admin.auth' => AdminAuthenticated::class,
         ]);
+        // SSO issue endpoint is called server-to-server from the panel — no CSRF token.
+        $middleware->validateCsrfTokens(except: [
+            '/sso/issue',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
