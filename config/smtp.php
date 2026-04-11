@@ -22,8 +22,9 @@
  */
 
 return [
-    'host'       => env('SMTP_HOST', '127.0.0.1'),
-    'port'       => (int) env('SMTP_PORT', 587),
-    'encryption' => env('SMTP_ENCRYPTION', 'tls'),  // null, tls, ssl
-    'timeout'    => (int) env('SMTP_TIMEOUT', 10),
+    'host'          => env('SMTP_HOST', '127.0.0.1'),
+    'port'          => (int) env('SMTP_PORT', 587),
+    'encryption'    => env('SMTP_ENCRYPTION', 'tls'),  // null, tls (STARTTLS), ssl (SMTPS)
+    'validate_cert' => env('SMTP_VALIDATE_CERT', false),
+    'timeout'       => (int) env('SMTP_TIMEOUT', 10),
 ];

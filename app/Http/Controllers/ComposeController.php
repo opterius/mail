@@ -23,32 +23,256 @@
 
 namespace App\Http\Controllers;
 
+use App\Auth\ImapGuard;
+use App\Services\ImapConnection;
+use App\Services\MimeParser;
+use App\Services\SmtpSender;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class ComposeController extends Controller
 {
-    public function create()
+    // ------------------------------------------------------------------
+    // Display
+    // ------------------------------------------------------------------
+
+    public function create(Request $request): mixed
     {
-        return view(mailView('compose.index'));
+        return $this->showCompose([
+            'mode'    => 'compose',
+            'to'      => $request->query('to', ''),
+            'subject' => '',
+            'body'    => '',
+            'cc'      => '',
+        ]);
     }
 
-    public function reply(string $folder, string $uid)
+    public function reply(Request $request, string $folder, string $uid): mixed
     {
-        return view(mailView('compose.index'), compact('folder', 'uid'));
+        $original = $this->fetchOriginal($folder, (int) $uid);
+
+        if ($original === null) {
+            return redirect()->route('inbox');
+        }
+
+        $subject = $original['subject'];
+        if (!preg_match('/^re:/i', $subject)) {
+            $subject = 'Re: ' . $subject;
+        }
+
+        $from = $original['from'];
+        $replyTo = $from['name']
+            ? "\"{$from['name']}\" <{$from['email']}>"
+            : $from['email'];
+
+        return $this->showCompose([
+            'mode'           => 'reply',
+            'to'             => $replyTo,
+            'subject'        => $subject,
+            'body'           => $this->quoteForReply($original),
+            'cc'             => '',
+            'originalFolder' => $folder,
+            'originalUid'    => (int) $uid,
+        ]);
     }
 
-    public function forward(string $folder, string $uid)
+    public function forward(Request $request, string $folder, string $uid): mixed
     {
-        return view(mailView('compose.index'), compact('folder', 'uid'));
+        $original = $this->fetchOriginal($folder, (int) $uid);
+
+        if ($original === null) {
+            return redirect()->route('inbox');
+        }
+
+        $subject = $original['subject'];
+        if (!preg_match('/^fwd:/i', $subject)) {
+            $subject = 'Fwd: ' . $subject;
+        }
+
+        return $this->showCompose([
+            'mode'           => 'forward',
+            'to'             => '',
+            'subject'        => $subject,
+            'body'           => $this->quoteForForward($original),
+            'cc'             => '',
+            'originalFolder' => $folder,
+            'originalUid'    => (int) $uid,
+        ]);
     }
 
-    public function send(Request $request)
+    // ------------------------------------------------------------------
+    // Send
+    // ------------------------------------------------------------------
+
+    public function send(Request $request): mixed
     {
-        return redirect()->route('inbox');
+        $data = $request->validate([
+            'to'      => ['required', 'string', 'max:2000'],
+            'cc'      => ['nullable', 'string', 'max:2000'],
+            'bcc'     => ['nullable', 'string', 'max:2000'],
+            'subject' => ['nullable', 'string', 'max:998'],
+            'body'    => ['nullable', 'string'],
+        ]);
+
+        /** @var ImapGuard $guard */
+        $guard    = auth('web');
+        $email    = $guard->user()->email;
+        $name     = $guard->user()->name;
+        $password = $guard->getImapPassword();
+
+        try {
+            (new SmtpSender())->send(
+                fromEmail: $email,
+                fromName:  $name,
+                password:  $password,
+                to:        $data['to'],
+                subject:   $data['subject'] ?? '',
+                bodyText:  $data['body'] ?? '',
+                cc:        $data['cc'] ?? '',
+                bcc:       $data['bcc'] ?? '',
+            );
+        } catch (\Throwable $e) {
+            return back()
+                ->withInput()
+                ->withErrors(['send' => 'Could not send message: ' . $e->getMessage()]);
+        }
+
+        return redirect()->route('inbox')->with('success', 'Message sent.');
     }
 
-    public function saveDraft(Request $request)
+    public function saveDraft(Request $request): mixed
     {
+        // Phase 3
         return response()->json(['ok' => true]);
+    }
+
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
+
+    private function showCompose(array $compose): mixed
+    {
+        /** @var ImapGuard $guard */
+        $guard = auth('web');
+
+        $folders = $this->fetchFolders($guard);
+
+        return view(mailView('compose.index'), array_merge($compose, [
+            'folders'       => $folders,
+            'currentFolder' => '',
+            'fromEmail'     => $guard->user()->email,
+            'fromName'      => $guard->user()->name,
+        ]));
+    }
+
+    private function fetchFolders(ImapGuard $guard): array
+    {
+        $imap = new ImapConnection();
+        try {
+            $imap->connect(
+                host:         config('imap.host'),
+                port:         config('imap.port'),
+                encryption:   config('imap.encryption'),
+                validateCert: config('imap.validate_cert', false),
+                timeout:      config('imap.timeout', 10),
+            );
+            $imap->login($guard->user()->email, $guard->getImapPassword());
+            $folders = array_map(
+                fn(array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
+                $imap->listFolders()
+            );
+            $imap->logout();
+            return $folders;
+        } catch (\Throwable) {
+            $imap->close();
+            return [];
+        }
+    }
+
+    private function fetchOriginal(string $folder, int $uid): ?array
+    {
+        /** @var ImapGuard $guard */
+        $guard    = auth('web');
+        $imap     = new ImapConnection();
+
+        try {
+            $imap->connect(
+                host:         config('imap.host'),
+                port:         config('imap.port'),
+                encryption:   config('imap.encryption'),
+                validateCert: config('imap.validate_cert', false),
+                timeout:      config('imap.timeout', 10),
+            );
+            $imap->login($guard->user()->email, $guard->getImapPassword());
+            $imap->selectFolder($folder);
+            $fetched = $imap->fetchMessageRaw($uid);
+            $imap->logout();
+        } catch (\Throwable) {
+            $imap->close();
+            return null;
+        }
+
+        if ($fetched['raw'] === '') {
+            return null;
+        }
+
+        $parsed            = (new MimeParser())->parse($fetched['raw']);
+        $parsed['uid']     = $uid;
+        $parsed['folder']  = $folder;
+
+        try {
+            $dt = Carbon::parse($parsed['date_raw']);
+            $parsed['date_formatted'] = $dt->format('l, F j, Y \a\t g:i A');
+        } catch (\Throwable) {
+            $parsed['date_formatted'] = $parsed['date_raw'];
+        }
+
+        return $parsed;
+    }
+
+    private function quoteForReply(array $original): string
+    {
+        $date    = $original['date_formatted'] ?? $original['date_raw'];
+        $from    = $original['from'];
+        $sender  = $from['name'] ? "{$from['name']} <{$from['email']}>" : $from['email'];
+        $body    = $this->plainBody($original);
+
+        $quoted  = implode("\n", array_map(
+            static fn(string $line): string => '> ' . $line,
+            explode("\n", $body),
+        ));
+
+        return "\n\nOn {$date}, {$sender} wrote:\n{$quoted}";
+    }
+
+    private function quoteForForward(array $original): string
+    {
+        $date   = $original['date_formatted'] ?? $original['date_raw'];
+        $from   = $original['from'];
+        $sender = $from['name'] ? "{$from['name']} <{$from['email']}>" : $from['email'];
+        $to     = implode(', ', array_map(
+            static fn(array $a): string => $a['name'] ? "{$a['name']} <{$a['email']}>" : $a['email'],
+            $original['to'],
+        ));
+        $body   = $this->plainBody($original);
+
+        return "\n\n---------- Forwarded message ----------\n"
+            . "From: {$sender}\n"
+            . "Date: {$date}\n"
+            . "Subject: {$original['subject']}\n"
+            . "To: {$to}\n\n"
+            . $body;
+    }
+
+    /** Get the best plain-text representation of a message body. */
+    private function plainBody(array $message): string
+    {
+        if ($message['body_text'] !== '') {
+            return rtrim($message['body_text']);
+        }
+        if ($message['body_html'] !== '') {
+            return rtrim(wordwrap(strip_tags($message['body_html']), 80));
+        }
+        return '';
     }
 }
