@@ -25,12 +25,25 @@ if (!function_exists('mailView')) {
     /**
      * Resolve a view path within the active mail UI template.
      *
+     * If the active template does not provide the requested view,
+     * the function falls back to the built-in 'default' template
+     * automatically. This lets a custom template override only the
+     * views it needs without re-implementing everything.
+     *
      * Usage: return view(mailView('inbox.index'), $data);
      */
     function mailView(string $view): string
     {
         $template = config('mail-ui.template', 'default');
-        return "templates.{$template}.{$view}";
+
+        if ($template !== 'default') {
+            $custom = "templates.{$template}.{$view}";
+            if (view()->exists($custom)) {
+                return $custom;
+            }
+        }
+
+        return "templates.default.{$view}";
     }
 }
 
