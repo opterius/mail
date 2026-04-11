@@ -24,6 +24,8 @@
 namespace App\Http\Controllers;
 
 use App\Auth\ImapGuard;
+use App\Models\AdminSetting;
+use App\Models\MailGroup;
 use App\Models\MailSendLog;
 use App\Services\ImapConnection;
 use App\Services\MimeParser;
@@ -130,6 +132,11 @@ class ComposeController extends Controller
             fn($a) => trim($a) !== '',
         ));
 
+        $limitError = $this->checkSendLimits($email, $recipientCount);
+        if ($limitError !== null) {
+            return back()->withInput()->withErrors(['send' => $limitError]);
+        }
+
         try {
             (new SmtpSender())->send(
                 fromEmail: $email,
@@ -175,6 +182,71 @@ class ComposeController extends Controller
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
+
+    /**
+     * Check whether the authenticated user is allowed to send right now.
+     *
+     * Returns a human-readable error string when a limit is exceeded,
+     * or null when sending is permitted.
+     */
+    private function checkSendLimits(string $email, int $recipientCount): ?string
+    {
+        $settings = userSettings();
+
+        // Resolve limits: group overrides global defaults
+        if ($settings->group_id) {
+            $group    = MailGroup::find($settings->group_id);
+            $hourly   = $group?->hourly_limit;
+            $daily    = $group?->daily_limit;
+            $weekly   = $group?->weekly_limit;
+            $monthly  = $group?->monthly_limit;
+            $maxRcpt  = $group?->max_recipients;
+        } else {
+            $hourly   = AdminSetting::get('default_hourly_limit');
+            $daily    = AdminSetting::get('default_daily_limit');
+            $weekly   = AdminSetting::get('default_weekly_limit');
+            $monthly  = AdminSetting::get('default_monthly_limit');
+            $maxRcpt  = AdminSetting::get('default_max_recipients');
+        }
+
+        // Per-message recipient cap
+        if ($maxRcpt !== null && $recipientCount > (int) $maxRcpt) {
+            return "You can address at most {$maxRcpt} recipients per message (you have {$recipientCount}).";
+        }
+
+        $now  = Carbon::now();
+        $base = MailSendLog::where('email', $email)->where('status', 'sent');
+
+        if ($hourly !== null) {
+            $count = (clone $base)->where('created_at', '>=', $now->copy()->subHour())->count();
+            if ($count >= (int) $hourly) {
+                return "Hourly sending limit of {$hourly} reached. Please try again later.";
+            }
+        }
+
+        if ($daily !== null) {
+            $count = (clone $base)->where('created_at', '>=', $now->copy()->startOfDay())->count();
+            if ($count >= (int) $daily) {
+                return "Daily sending limit of {$daily} reached.";
+            }
+        }
+
+        if ($weekly !== null) {
+            $count = (clone $base)->where('created_at', '>=', $now->copy()->startOfWeek())->count();
+            if ($count >= (int) $weekly) {
+                return "Weekly sending limit of {$weekly} reached.";
+            }
+        }
+
+        if ($monthly !== null) {
+            $count = (clone $base)->where('created_at', '>=', $now->copy()->startOfMonth())->count();
+            if ($count >= (int) $monthly) {
+                return "Monthly sending limit of {$monthly} reached.";
+            }
+        }
+
+        return null;
+    }
 
     private function showCompose(array $compose): mixed
     {
