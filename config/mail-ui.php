@@ -24,4 +24,9 @@
 return [
     'template'   => env('MAIL_UI_TEMPLATE', 'default'),
     'admin_mode' => env('MAIL_ADMIN', false),
+
+    // Panel SSO — token-based auto-login from Opterius Panel (or any trusted host).
+    // Set PANEL_SSO_SECRET to the same value on the panel side.
+    'sso_enabled' => env('PANEL_SSO_ENABLED', false),
+    'sso_secret'  => env('PANEL_SSO_SECRET'),
 ];

@@ -35,8 +35,8 @@ class MessageController extends Controller
     {
         /** @var ImapGuard $guard */
         $guard    = auth('web');
-        $email    = $guard->user()->email;
         $password = $guard->getImapPassword();
+        $login    = $guard->getImapLogin();
         $uidInt   = (int) $uid;
 
         $imap = new ImapConnection();
@@ -49,7 +49,7 @@ class MessageController extends Controller
                 validateCert: config('imap.validate_cert', false),
                 timeout:      config('imap.timeout', 10),
             );
-            $imap->login($email, $password);
+            $imap->login($login, $password);
 
             // Folders for sidebar
             $folders = array_map(

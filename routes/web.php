@@ -29,7 +29,19 @@ use App\Http\Controllers\InboxController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SsoController;
 use Illuminate\Support\Facades\Route;
+
+// ------------------------------------------------------------------
+// Panel SSO routes
+// ------------------------------------------------------------------
+
+// Issue endpoint: called server-to-server from the panel (no CSRF).
+Route::post('/sso/issue', [SsoController::class, 'issue'])
+    ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+
+// Login endpoint: user browser arrives here with a one-time token.
+Route::get('/sso/login', [SsoController::class, 'login'])->name('sso.login');
 
 // ------------------------------------------------------------------
 // Guest routes

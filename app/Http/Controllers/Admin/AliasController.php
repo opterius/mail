@@ -24,22 +24,80 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\MailAlias;
+use App\Models\MailDomain;
 use Illuminate\Http\Request;
 
 class AliasController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return view(mailView('admin.aliases.index'), ['aliases' => []]);
+        $query = MailAlias::with('domain')->orderBy('alias_email');
+
+        if ($request->filled('domain')) {
+            $query->whereHas('domain', fn($q) => $q->where('domain', $request->domain));
+        }
+
+        $aliases = $query->paginate(50)->withQueryString();
+        $domains = MailDomain::orderBy('domain')->pluck('domain');
+
+        return view(mailView('admin.aliases.index'), compact('aliases', 'domains'));
     }
 
     public function store(Request $request)
     {
-        return redirect()->route('admin.aliases.index');
+        $request->validate([
+            'domain_id'         => ['required', 'exists:mail_domains,id'],
+            'local'             => ['required', 'string', 'max:64', 'regex:/^[a-zA-Z0-9._%+\-]+$/'],
+            'destination_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $domain = MailDomain::findOrFail($request->domain_id);
+        $alias  = strtolower($request->local) . '@' . $domain->domain;
+
+        if (MailAlias::where('alias_email', $alias)->exists()) {
+            return back()->withInput()->withErrors(['local' => "Alias {$alias} already exists."]);
+        }
+
+        MailAlias::create([
+            'domain_id'         => $request->domain_id,
+            'alias_email'       => $alias,
+            'destination_email' => strtolower($request->destination_email),
+            'is_active'         => true,
+        ]);
+
+        return redirect()->route('admin.aliases.index')
+            ->with('success', "Alias {$alias} → {$request->destination_email} created.");
     }
 
-    public function destroy(string $alias)
+    public function update(Request $request, MailAlias $mail_alias)
     {
-        return redirect()->route('admin.aliases.index');
+        $request->validate([
+            'destination_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $mail_alias->update(['destination_email' => strtolower($request->destination_email)]);
+
+        return redirect()->route('admin.aliases.index')
+            ->with('success', "Alias {$mail_alias->alias_email} updated.");
+    }
+
+    public function toggle(MailAlias $mail_alias)
+    {
+        $mail_alias->update(['is_active' => !$mail_alias->is_active]);
+
+        $state = $mail_alias->is_active ? 'enabled' : 'disabled';
+
+        return redirect()->route('admin.aliases.index')
+            ->with('success', "Alias {$mail_alias->alias_email} {$state}.");
+    }
+
+    public function destroy(MailAlias $mail_alias)
+    {
+        $alias = $mail_alias->alias_email;
+        $mail_alias->delete();
+
+        return redirect()->route('admin.aliases.index')
+            ->with('success', "Alias {$alias} deleted.");
     }
 }

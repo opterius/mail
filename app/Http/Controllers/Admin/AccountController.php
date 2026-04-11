@@ -24,42 +24,113 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\MailAccount;
+use App\Models\MailDomain;
+use App\Models\MailGroup;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rules\Password;
 
 class AccountController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return view(mailView('admin.accounts.index'), ['accounts' => []]);
+        $query = MailAccount::with(['domain', 'group'])->orderBy('email');
+
+        if ($request->filled('domain')) {
+            $query->whereHas('domain', fn($q) => $q->where('domain', $request->domain));
+        }
+
+        $accounts = $query->paginate(50)->withQueryString();
+        $domains  = MailDomain::orderBy('domain')->pluck('domain');
+
+        return view(mailView('admin.accounts.index'), compact('accounts', 'domains'));
     }
 
     public function create()
     {
-        return view(mailView('admin.accounts.create'));
+        $domains = MailDomain::where('is_active', true)->orderBy('domain')->get();
+        $groups  = MailGroup::orderBy('name')->get();
+
+        return view(mailView('admin.accounts.create'), compact('domains', 'groups'));
     }
 
     public function store(Request $request)
     {
-        return redirect()->route('admin.accounts.index');
+        $request->validate([
+            'domain_id' => ['required', 'exists:mail_domains,id'],
+            'local'     => ['required', 'string', 'max:64', 'regex:/^[a-zA-Z0-9._%+\-]+$/'],
+            'password'  => ['required', 'confirmed', Password::min(8)],
+            'quota_mb'  => ['nullable', 'integer', 'min:1', 'max:1048576'],
+            'group_id'  => ['nullable', 'exists:mail_groups,id'],
+        ]);
+
+        $domain = MailDomain::findOrFail($request->domain_id);
+        $email  = strtolower($request->local) . '@' . $domain->domain;
+
+        if (MailAccount::where('email', $email)->exists()) {
+            return back()->withInput()->withErrors(['local' => "Account {$email} already exists."]);
+        }
+
+        MailAccount::create([
+            'domain_id' => $request->domain_id,
+            'email'     => $email,
+            'password'  => $request->password,
+            'quota_mb'  => $request->quota_mb ?: null,
+            'is_active' => true,
+            'group_id'  => $request->group_id ?: null,
+        ]);
+
+        return redirect()->route('admin.accounts.index')
+            ->with('success', "Account {$email} created.");
     }
 
-    public function edit(string $account)
+    public function edit(MailAccount $mail_account)
     {
-        return view(mailView('admin.accounts.edit'), compact('account'));
+        $mail_account->load(['domain', 'group']);
+        $groups = MailGroup::orderBy('name')->get();
+
+        return view(mailView('admin.accounts.edit'), compact('mail_account', 'groups'));
     }
 
-    public function update(Request $request, string $account)
+    public function update(Request $request, MailAccount $mail_account)
     {
-        return redirect()->route('admin.accounts.index');
+        $request->validate([
+            'password' => ['nullable', 'confirmed', Password::min(8)],
+            'quota_mb' => ['nullable', 'integer', 'min:1', 'max:1048576'],
+            'group_id' => ['nullable', 'exists:mail_groups,id'],
+        ]);
+
+        $data = [
+            'quota_mb' => $request->quota_mb ?: null,
+            'group_id' => $request->group_id ?: null,
+        ];
+
+        if ($request->filled('password')) {
+            $data['password'] = $request->password;
+        }
+
+        $mail_account->update($data);
+
+        return redirect()->route('admin.accounts.index')
+            ->with('success', "Account {$mail_account->email} updated.");
     }
 
-    public function destroy(string $account)
+    public function toggle(MailAccount $mail_account)
     {
-        return redirect()->route('admin.accounts.index');
+        $mail_account->update(['is_active' => !$mail_account->is_active]);
+
+        $state = $mail_account->is_active ? 'enabled' : 'suspended';
+
+        return redirect()->route('admin.accounts.index')
+            ->with('success', "Account {$mail_account->email} {$state}.");
     }
 
-    public function disable2fa(string $account)
+    public function destroy(MailAccount $mail_account)
     {
-        return redirect()->route('admin.accounts.index');
+        $email = $mail_account->email;
+        $mail_account->delete();
+
+        return redirect()->route('admin.accounts.index')
+            ->with('success', "Account {$email} deleted.");
     }
 }

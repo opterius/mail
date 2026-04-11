@@ -90,9 +90,19 @@ class ImapGuard implements Guard
         return true;
     }
 
+    /**
+     * The IMAP login username for this session.
+     * For normal logins this equals the user's email.
+     * For SSO sessions it is "{email}*{masterUser}" (Dovecot master user format).
+     */
+    public function getImapLogin(): string
+    {
+        return session('imap_login') ?? session('imap_email', '');
+    }
+
     public function logout(): void
     {
-        session()->forget(['imap_email', 'imap_password', 'imap_display_name', '2fa_pending']);
+        session()->forget(['imap_email', 'imap_password', 'imap_display_name', 'imap_login', '2fa_pending']);
         session()->invalidate();
         session()->regenerateToken();
         $this->user = null;

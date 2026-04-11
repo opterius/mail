@@ -48,8 +48,8 @@ class InboxController extends Controller
     {
         /** @var ImapGuard $guard */
         $guard    = auth('web');
-        $email    = $guard->user()->email;
         $password = $guard->getImapPassword();
+        $login    = $guard->getImapLogin();
 
         $imap = new ImapConnection();
 
@@ -62,7 +62,7 @@ class InboxController extends Controller
                 timeout:      config('imap.timeout', 10),
             );
 
-            $imap->login($email, $password);
+            $imap->login($login, $password);
 
             // Folders for sidebar — fetch STATUS (unseen) for each
             $rawFolders = $imap->listFolders();

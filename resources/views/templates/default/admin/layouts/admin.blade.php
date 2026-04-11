@@ -79,6 +79,7 @@
                     {!! $navItem('admin.spam.index', 'Spam') !!}
                     {!! $navItem('admin.dkim.index', 'DKIM') !!}
                     {!! $navItem('admin.queue.index', 'Queue') !!}
+                    {!! $navItem('admin.settings.export', 'MTA Export') !!}
                 @endif
 
             </nav>

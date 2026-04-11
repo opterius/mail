@@ -21,15 +21,21 @@
  *  For custom changes, use the template and plugin system.
  */
 
-return [
-    'host'          => env('IMAP_HOST', '127.0.0.1'),
-    'port'          => (int) env('IMAP_PORT', 143),
-    'encryption'    => env('IMAP_ENCRYPTION', null),  // null, ssl, tls, starttls
-    'validate_cert' => env('IMAP_VALIDATE_CERT', false),
-    'timeout'       => (int) env('IMAP_TIMEOUT', 10),
+namespace App\Models;
 
-    // Dovecot master user — used by SSO auto-login and the mail:autorespond command.
-    // Format used in IMAP LOGIN: {email}*{master_user} / {master_pass}
-    'master_user'   => env('IMAP_MASTER_USER'),
-    'master_pass'   => env('IMAP_MASTER_PASS'),
-];
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class MailAlias extends Model
+{
+    protected $fillable = [
+        'domain_id', 'alias_email', 'destination_email', 'is_active',
+    ];
+
+    protected $casts = ['is_active' => 'boolean'];
+
+    public function domain(): BelongsTo
+    {
+        return $this->belongsTo(MailDomain::class, 'domain_id');
+    }
+}

@@ -24,27 +24,144 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\DkimKey;
+use App\Models\MailDomain;
 use Illuminate\Http\Request;
 
 class DomainController extends Controller
 {
     public function index()
     {
-        return view(mailView('admin.domains.index'), ['domains' => []]);
+        $domains = MailDomain::withCount(['accounts', 'aliases'])
+            ->orderBy('domain')
+            ->paginate(30);
+
+        return view(mailView('admin.domains.index'), compact('domains'));
     }
 
     public function store(Request $request)
     {
-        return redirect()->route('admin.domains.index');
+        $request->validate([
+            'domain' => ['required', 'string', 'max:255', 'unique:mail_domains,domain'],
+        ]);
+
+        MailDomain::create([
+            'domain'    => strtolower(trim($request->domain)),
+            'is_active' => true,
+        ]);
+
+        return redirect()->route('admin.domains.index')
+            ->with('success', "Domain {$request->domain} added.");
     }
 
-    public function destroy(string $domain)
+    public function toggle(MailDomain $mail_domain)
     {
-        return redirect()->route('admin.domains.index');
+        $mail_domain->update(['is_active' => !$mail_domain->is_active]);
+
+        $state = $mail_domain->is_active ? 'enabled' : 'disabled';
+
+        return redirect()->route('admin.domains.index')
+            ->with('success', "Domain {$mail_domain->domain} {$state}.");
     }
 
-    public function dns(string $domain)
+    public function destroy(MailDomain $mail_domain)
     {
-        return view(mailView('admin.domains.dns'), compact('domain'));
+        $domain = $mail_domain->domain;
+        $mail_domain->delete();
+
+        return redirect()->route('admin.domains.index')
+            ->with('success', "Domain {$domain} and all its accounts/aliases deleted.");
+    }
+
+    public function dns(MailDomain $mail_domain)
+    {
+        $domain = $mail_domain->domain;
+
+        $mx    = $this->checkMx($domain);
+        $spf   = $this->checkSpf($domain);
+        $dmarc = $this->checkDmarc($domain);
+        $dkim  = $this->checkDkim($domain);
+
+        return view(mailView('admin.domains.dns'), compact('mail_domain', 'mx', 'spf', 'dmarc', 'dkim'));
+    }
+
+    // ------------------------------------------------------------------
+    // DNS helpers
+    // ------------------------------------------------------------------
+
+    private function checkMx(string $domain): array
+    {
+        $records = @dns_get_record($domain, DNS_MX) ?: [];
+
+        return [
+            'found'   => count($records) > 0,
+            'records' => array_map(fn($r) => "Priority {$r['pri']}: {$r['target']}", $records),
+        ];
+    }
+
+    private function checkSpf(string $domain): array
+    {
+        $records = @dns_get_record($domain, DNS_TXT) ?: [];
+        $spf = null;
+
+        foreach ($records as $r) {
+            $txt = $r['txt'] ?? implode('', $r['entries'] ?? []);
+            if (str_starts_with($txt, 'v=spf1')) {
+                $spf = $txt;
+                break;
+            }
+        }
+
+        return [
+            'found'  => $spf !== null,
+            'record' => $spf,
+        ];
+    }
+
+    private function checkDmarc(string $domain): array
+    {
+        $records = @dns_get_record("_dmarc.{$domain}", DNS_TXT) ?: [];
+        $dmarc = null;
+
+        foreach ($records as $r) {
+            $txt = $r['txt'] ?? implode('', $r['entries'] ?? []);
+            if (str_starts_with($txt, 'v=DMARC1')) {
+                $dmarc = $txt;
+                break;
+            }
+        }
+
+        return [
+            'found'  => $dmarc !== null,
+            'record' => $dmarc,
+        ];
+    }
+
+    private function checkDkim(string $domain): array
+    {
+        $keys = DkimKey::where('domain', $domain)->get();
+        $results = [];
+
+        foreach ($keys as $key) {
+            $host = $key->dnsName();
+            $records = @dns_get_record($host, DNS_TXT) ?: [];
+            $published = false;
+
+            foreach ($records as $r) {
+                $txt = $r['txt'] ?? implode('', $r['entries'] ?? []);
+                if (str_contains($txt, 'v=DKIM1')) {
+                    $published = true;
+                    break;
+                }
+            }
+
+            $results[] = [
+                'selector'  => $key->selector,
+                'host'      => $host,
+                'published' => $published,
+            ];
+        }
+
+        return $results;
     }
 }

@@ -28,6 +28,7 @@ use App\Http\Controllers\Admin\AutoresponderController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DkimController;
 use App\Http\Controllers\Admin\DomainController;
+use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Admin\QueueController;
@@ -70,22 +71,25 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Domains
         Route::get('/domains', [DomainController::class, 'index'])->name('domains.index');
         Route::post('/domains', [DomainController::class, 'store'])->name('domains.store');
-        Route::delete('/domains/{domain}', [DomainController::class, 'destroy'])->name('domains.destroy');
-        Route::get('/domains/{domain}/dns', [DomainController::class, 'dns'])->name('domains.dns');
+        Route::post('/domains/{mail_domain}/toggle', [DomainController::class, 'toggle'])->name('domains.toggle');
+        Route::delete('/domains/{mail_domain}', [DomainController::class, 'destroy'])->name('domains.destroy');
+        Route::get('/domains/{mail_domain}/dns', [DomainController::class, 'dns'])->name('domains.dns');
 
         // Accounts
         Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
         Route::get('/accounts/create', [AccountController::class, 'create'])->name('accounts.create');
         Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');
-        Route::get('/accounts/{account}/edit', [AccountController::class, 'edit'])->name('accounts.edit');
-        Route::put('/accounts/{account}', [AccountController::class, 'update'])->name('accounts.update');
-        Route::delete('/accounts/{account}', [AccountController::class, 'destroy'])->name('accounts.destroy');
-        Route::post('/accounts/{account}/disable-2fa', [AccountController::class, 'disable2fa'])->name('accounts.disable2fa');
+        Route::get('/accounts/{mail_account}/edit', [AccountController::class, 'edit'])->name('accounts.edit');
+        Route::put('/accounts/{mail_account}', [AccountController::class, 'update'])->name('accounts.update');
+        Route::post('/accounts/{mail_account}/toggle', [AccountController::class, 'toggle'])->name('accounts.toggle');
+        Route::delete('/accounts/{mail_account}', [AccountController::class, 'destroy'])->name('accounts.destroy');
 
         // Aliases
         Route::get('/aliases', [AliasController::class, 'index'])->name('aliases.index');
         Route::post('/aliases', [AliasController::class, 'store'])->name('aliases.store');
-        Route::delete('/aliases/{alias}', [AliasController::class, 'destroy'])->name('aliases.destroy');
+        Route::put('/aliases/{mail_alias}', [AliasController::class, 'update'])->name('aliases.update');
+        Route::post('/aliases/{mail_alias}/toggle', [AliasController::class, 'toggle'])->name('aliases.toggle');
+        Route::delete('/aliases/{mail_alias}', [AliasController::class, 'destroy'])->name('aliases.destroy');
 
         // Autoresponders
         Route::get('/autoresponders', [AutoresponderController::class, 'index'])->name('autoresponders.index');
@@ -114,5 +118,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Settings
         Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
+        Route::get('/settings/export', [ExportController::class, 'index'])->name('settings.export');
     });
 });

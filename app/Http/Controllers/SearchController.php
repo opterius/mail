@@ -52,7 +52,7 @@ class SearchController extends Controller
                 validateCert: config('imap.validate_cert', false),
                 timeout:      config('imap.timeout', 10),
             );
-            $imap->login($guard->user()->email, $guard->getImapPassword());
+            $imap->login($guard->getImapLogin(), $guard->getImapPassword());
 
             $folders = array_map(
                 fn(array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
