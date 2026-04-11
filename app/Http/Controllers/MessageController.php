@@ -23,27 +23,103 @@
 
 namespace App\Http\Controllers;
 
+use App\Auth\ImapGuard;
+use App\Services\ImapConnection;
+use App\Services\MimeParser;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class MessageController extends Controller
 {
-    public function show(string $folder, string $uid)
+    public function show(Request $request, string $folder, string $uid): mixed
     {
-        return view(mailView('inbox.message'), compact('folder', 'uid'));
+        /** @var ImapGuard $guard */
+        $guard    = auth('web');
+        $email    = $guard->user()->email;
+        $password = $guard->getImapPassword();
+        $uidInt   = (int) $uid;
+
+        $imap = new ImapConnection();
+
+        try {
+            $imap->connect(
+                host:         config('imap.host'),
+                port:         config('imap.port'),
+                encryption:   config('imap.encryption'),
+                validateCert: config('imap.validate_cert', false),
+                timeout:      config('imap.timeout', 10),
+            );
+            $imap->login($email, $password);
+
+            // Folders for sidebar
+            $folders = array_map(
+                fn(array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
+                $imap->listFolders()
+            );
+
+            $imap->selectFolder($folder);
+
+            $fetched = $imap->fetchMessageRaw($uidInt);
+            $imap->markSeen($uidInt);
+            $imap->logout();
+
+        } catch (\Throwable $e) {
+            $imap->close();
+            $backRoute = strtoupper($folder) === 'INBOX'
+                ? route('inbox')
+                : route('folder', ['folder' => rawurlencode($folder)]);
+            return redirect($backRoute)->withErrors(['message' => 'Could not load message: ' . $e->getMessage()]);
+        }
+
+        if ($fetched['raw'] === '') {
+            return redirect()->route('inbox');
+        }
+
+        $parser  = new MimeParser();
+        $message = $parser->parse($fetched['raw']);
+
+        $message['uid']            = $uidInt;
+        $message['folder']         = $folder;
+        $message['flags']          = $fetched['flags'];
+        $message['date_formatted'] = $this->formatDate($message['date_raw']);
+
+        return view(mailView('inbox.message'), [
+            'folders'       => $folders,
+            'currentFolder' => $folder,
+            'message'       => $message,
+        ]);
     }
 
-    public function destroy(string $folder, string $uid)
+    public function destroy(Request $request, string $folder, string $uid): mixed
     {
+        // Phase 2
         return redirect()->route('inbox');
     }
 
-    public function move(Request $request, string $folder, string $uid)
+    public function move(Request $request, string $folder, string $uid): mixed
     {
+        // Phase 2
         return response()->json(['ok' => true]);
     }
 
-    public function flag(Request $request, string $folder, string $uid)
+    public function flag(Request $request, string $folder, string $uid): mixed
     {
+        // Phase 2
         return response()->json(['ok' => true]);
+    }
+
+    // ------------------------------------------------------------------
+
+    private function formatDate(string $raw): string
+    {
+        if ($raw === '') {
+            return '';
+        }
+        try {
+            $dt = Carbon::parse($raw);
+            return $dt->format('l, F j, Y \a\t g:i A');
+        } catch (\Throwable) {
+            return $raw;
+        }
     }
 }

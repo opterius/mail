@@ -197,6 +197,48 @@ class ImapConnection
     }
 
     /**
+     * Fetch the full raw RFC 2822 message for a UID.
+     * Does NOT set the \Seen flag (uses BODY.PEEK).
+     * Call markSeen() separately after confirming the fetch succeeded.
+     *
+     * @return array{raw: string, flags: string[]}
+     */
+    public function fetchMessageRaw(int $uid): array
+    {
+        $result = $this->command("UID FETCH {$uid} (FLAGS BODY.PEEK[])");
+
+        foreach ($result['untagged'] as $line) {
+            if (!preg_match('/^\* \d+ FETCH /i', $line)) {
+                continue;
+            }
+
+            $flags = [];
+            if (preg_match('/\bFLAGS \(([^)]*)\)/i', $line, $m)) {
+                $flags = array_values(array_filter(explode(' ', trim($m[1]))));
+            }
+
+            if (preg_match('/\{(\d+)\}\r\n/', $line, $lm, PREG_OFFSET_CAPTURE)) {
+                $n         = (int) $lm[1][0];
+                $dataStart = (int) $lm[0][1] + strlen($lm[0][0]);
+                return [
+                    'raw'   => substr($line, $dataStart, $n),
+                    'flags' => $flags,
+                ];
+            }
+        }
+
+        return ['raw' => '', 'flags' => []];
+    }
+
+    /**
+     * Mark a message as read by adding the \Seen flag.
+     */
+    public function markSeen(int $uid): void
+    {
+        $this->command("UID STORE {$uid} +FLAGS (\\Seen)");
+    }
+
+    /**
      * Fetch message headers for a sequence range (e.g. "101:150").
      * Must call selectFolder() first.
      *
