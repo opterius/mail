@@ -25,21 +25,89 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class QueueController extends Controller
 {
     public function index()
     {
-        return view(mailView('admin.queue.index'), ['messages' => []]);
+        $pending = collect(DB::table('jobs')
+            ->orderBy('created_at')
+            ->get()
+            ->map(function ($job) {
+                $payload = json_decode($job->payload, true);
+                return [
+                    'id'           => $job->id,
+                    'queue'        => $job->queue,
+                    'display_name' => $payload['displayName'] ?? 'Unknown',
+                    'attempts'     => $job->attempts,
+                    'available_at' => $job->available_at,
+                    'created_at'   => $job->created_at,
+                ];
+            }));
+
+        $failed = collect(DB::table('failed_jobs')
+            ->orderByDesc('failed_at')
+            ->get()
+            ->map(function ($job) {
+                $payload   = json_decode($job->payload, true);
+                $exception = $job->exception ?? '';
+                // First line of exception only
+                $shortError = trim(explode("\n", $exception)[0] ?? '');
+
+                return [
+                    'id'           => $job->id,
+                    'uuid'         => $job->uuid,
+                    'queue'        => $job->queue,
+                    'display_name' => $payload['displayName'] ?? 'Unknown',
+                    'short_error'  => mb_substr($shortError, 0, 200),
+                    'failed_at'    => $job->failed_at,
+                ];
+            }));
+
+        return view(mailView('admin.queue.index'), compact('pending', 'failed'));
     }
 
+    /**
+     * Re-queue all failed jobs (move back to jobs table).
+     */
     public function flush(Request $request)
     {
-        return redirect()->route('admin.queue.index');
+        $failedJobs = DB::table('failed_jobs')->get();
+        $count = 0;
+
+        foreach ($failedJobs as $failedJob) {
+            $payload = json_decode($failedJob->payload, true);
+            if (!$payload) {
+                continue;
+            }
+            // Reset attempts so the worker will pick it up
+            $payload['attempts'] = 0;
+
+            DB::table('jobs')->insert([
+                'queue'        => $failedJob->queue,
+                'payload'      => json_encode($payload),
+                'attempts'     => 0,
+                'reserved_at'  => null,
+                'available_at' => now()->getTimestamp(),
+                'created_at'   => now()->getTimestamp(),
+            ]);
+
+            DB::table('failed_jobs')->where('id', $failedJob->id)->delete();
+            $count++;
+        }
+
+        return redirect()->route('admin.queue.index')
+            ->with('success', "{$count} failed job(s) re-queued.");
     }
 
+    /**
+     * Delete a single failed job.
+     */
     public function destroy(string $id)
     {
-        return redirect()->route('admin.queue.index');
+        DB::table('failed_jobs')->where('id', $id)->delete();
+        return redirect()->route('admin.queue.index')
+            ->with('success', 'Failed job deleted.');
     }
 }

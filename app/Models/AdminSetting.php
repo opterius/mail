@@ -38,12 +38,15 @@ class AdminSetting extends Model
 
     // Default values for every key
     private const DEFAULTS = [
-        'webmail_name'         => 'Opterius Mail',
-        'default_hourly_limit' => null,
-        'default_daily_limit'  => null,
-        'default_weekly_limit' => null,
-        'default_monthly_limit'=> null,
+        'webmail_name'           => 'Opterius Mail',
+        'default_hourly_limit'   => null,
+        'default_daily_limit'    => null,
+        'default_weekly_limit'   => null,
+        'default_monthly_limit'  => null,
         'default_max_recipients' => null,
+        'spam_score_threshold'   => '5.0',
+        'spam_action'            => 'tag',
+        'spam_subject_prefix'    => '[SPAM]',
     ];
 
     /**

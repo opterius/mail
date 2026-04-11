@@ -90,6 +90,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Autoresponders
         Route::get('/autoresponders', [AutoresponderController::class, 'index'])->name('autoresponders.index');
         Route::post('/autoresponders', [AutoresponderController::class, 'store'])->name('autoresponders.store');
+        Route::put('/autoresponders/{autoresponder}', [AutoresponderController::class, 'update'])->name('autoresponders.update');
+        Route::post('/autoresponders/{autoresponder}/toggle', [AutoresponderController::class, 'toggle'])->name('autoresponders.toggle');
         Route::delete('/autoresponders/{autoresponder}', [AutoresponderController::class, 'destroy'])->name('autoresponders.destroy');
 
         // Spam
@@ -98,7 +100,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // DKIM
         Route::get('/dkim', [DkimController::class, 'index'])->name('dkim.index');
-        Route::post('/dkim/{domain}', [DkimController::class, 'generate'])->name('dkim.generate');
+        Route::post('/dkim', [DkimController::class, 'generate'])->name('dkim.generate');
+        Route::delete('/dkim/{dkim_key}', [DkimController::class, 'destroy'])->name('dkim.destroy');
 
         // Mail queue
         Route::get('/queue', [QueueController::class, 'index'])->name('queue.index');

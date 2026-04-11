@@ -24,22 +24,60 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Autoresponder;
 use Illuminate\Http\Request;
 
 class AutoresponderController extends Controller
 {
     public function index()
     {
-        return view(mailView('admin.autoresponders.index'), ['autoresponders' => []]);
+        $autoresponders = Autoresponder::orderBy('email')->get();
+        return view(mailView('admin.autoresponders.index'), compact('autoresponders'));
     }
 
     public function store(Request $request)
     {
-        return redirect()->route('admin.autoresponders.index');
+        $data = $this->validated($request);
+        Autoresponder::create($data);
+        return redirect()->route('admin.autoresponders.index')
+            ->with('success', "Autoresponder for {$data['email']} created.");
     }
 
-    public function destroy(string $autoresponder)
+    public function update(Request $request, Autoresponder $autoresponder)
     {
-        return redirect()->route('admin.autoresponders.index');
+        $data = $this->validated($request, $autoresponder);
+        $autoresponder->update($data);
+        return redirect()->route('admin.autoresponders.index')
+            ->with('success', "Autoresponder for {$autoresponder->email} updated.");
+    }
+
+    public function toggle(Autoresponder $autoresponder)
+    {
+        $autoresponder->update(['is_active' => !$autoresponder->is_active]);
+        $state = $autoresponder->is_active ? 'enabled' : 'disabled';
+        return redirect()->route('admin.autoresponders.index')
+            ->with('success', "Autoresponder {$state}.");
+    }
+
+    public function destroy(Autoresponder $autoresponder)
+    {
+        $email = $autoresponder->email;
+        $autoresponder->delete();
+        return redirect()->route('admin.autoresponders.index')
+            ->with('success', "Autoresponder for {$email} deleted.");
+    }
+
+    // ------------------------------------------------------------------
+
+    private function validated(Request $request, ?Autoresponder $existing = null): array
+    {
+        return $request->validate([
+            'email'     => ['required', 'email', 'max:255'],
+            'subject'   => ['required', 'string', 'max:255'],
+            'body'      => ['required', 'string', 'max:10000'],
+            'starts_at' => ['nullable', 'date'],
+            'ends_at'   => ['nullable', 'date', 'after_or_equal:starts_at'],
+            'is_active' => ['boolean'],
+        ]);
     }
 }

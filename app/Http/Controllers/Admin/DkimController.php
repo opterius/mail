@@ -24,17 +24,47 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\DkimKey;
 use Illuminate\Http\Request;
 
 class DkimController extends Controller
 {
     public function index()
     {
-        return view(mailView('admin.dkim.index'), ['keys' => []]);
+        $keys = DkimKey::orderBy('domain')->orderBy('selector')->get();
+        return view(mailView('admin.dkim.index'), compact('keys'));
     }
 
     public function generate(Request $request, string $domain)
     {
-        return redirect()->route('admin.dkim.index');
+        $data = $request->validate([
+            'domain'   => ['required', 'string', 'max:255', 'regex:/^[a-z0-9.\-]+$/i'],
+            'selector' => ['nullable', 'string', 'max:63', 'regex:/^[a-z0-9\-]+$/i'],
+        ]);
+
+        $domain   = strtolower(trim($data['domain']));
+        $selector = strtolower(trim($data['selector'] ?? 'mail')) ?: 'mail';
+
+        // Revoke existing key for this domain+selector if present
+        DkimKey::where('domain', $domain)->where('selector', $selector)->delete();
+
+        try {
+            $key = DkimKey::generate($domain, $selector);
+            $key->save();
+        } catch (\RuntimeException $e) {
+            return redirect()->route('admin.dkim.index')
+                ->with('error', 'Key generation failed: ' . $e->getMessage());
+        }
+
+        return redirect()->route('admin.dkim.index')
+            ->with('success', "DKIM key generated for {$domain} (selector: {$selector}).");
+    }
+
+    public function destroy(DkimKey $dkim_key)
+    {
+        $label = "{$dkim_key->selector}._domainkey.{$dkim_key->domain}";
+        $dkim_key->delete();
+        return redirect()->route('admin.dkim.index')
+            ->with('success', "Key {$label} deleted.");
     }
 }

@@ -21,32 +21,28 @@
  *  For custom changes, use the template and plugin system.
  */
 
-namespace App\Http\Controllers\Admin;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-use App\Http\Controllers\Controller;
-use App\Models\AdminSetting;
-use Illuminate\Http\Request;
-
-class SpamController extends Controller
+return new class extends Migration
 {
-    public function index()
+    public function up(): void
     {
-        $settings = AdminSetting::allSettings();
-        return view(mailView('admin.spam.index'), compact('settings'));
+        Schema::create('dkim_keys', function (Blueprint $table) {
+            $table->id();
+            $table->string('domain', 255)->index();
+            $table->string('selector', 63)->default('mail');
+            $table->text('private_key');
+            $table->text('public_key');
+            $table->text('dns_record');
+            $table->timestamps();
+            $table->unique(['domain', 'selector']);
+        });
     }
 
-    public function update(Request $request)
+    public function down(): void
     {
-        $data = $request->validate([
-            'spam_score_threshold' => ['required', 'numeric', 'min:0', 'max:20'],
-            'spam_action'          => ['required', 'in:tag,reject,quarantine'],
-            'spam_subject_prefix'  => ['nullable', 'string', 'max:30'],
-        ]);
-
-        foreach ($data as $key => $value) {
-            AdminSetting::set($key, $value);
-        }
-
-        return redirect()->route('admin.spam.index')->with('success', 'Spam settings saved.');
+        Schema::dropIfExists('dkim_keys');
     }
-}
+};
