@@ -138,7 +138,7 @@
             @endphp
             <iframe
                 id="msg-body"
-                srcdoc="{{ htmlspecialchars($html, ENT_QUOTES, 'UTF-8') }}"
+                srcdoc="{!! htmlspecialchars($html, ENT_QUOTES, 'UTF-8') !!}"
                 sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                 class="w-full border-0"
                 style="min-height: 400px"
