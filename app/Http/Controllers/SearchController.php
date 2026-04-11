@@ -23,15 +23,86 @@
 
 namespace App\Http\Controllers;
 
+use App\Auth\ImapGuard;
+use App\Services\ImapConnection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class SearchController extends Controller
 {
-    public function index(Request $request)
+    private const MAX_RESULTS = 50;
+
+    public function index(Request $request): mixed
     {
+        $query    = trim($request->get('q', ''));
+        $messages = [];
+        $folders  = [];
+        $error    = null;
+        $total    = 0;
+
+        /** @var ImapGuard $guard */
+        $guard    = auth('web');
+        $imap     = new ImapConnection();
+
+        try {
+            $imap->connect(
+                host:         config('imap.host'),
+                port:         config('imap.port'),
+                encryption:   config('imap.encryption'),
+                validateCert: config('imap.validate_cert', false),
+                timeout:      config('imap.timeout', 10),
+            );
+            $imap->login($guard->user()->email, $guard->getImapPassword());
+
+            $folders = array_map(
+                fn(array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
+                $imap->listFolders()
+            );
+
+            if ($query !== '') {
+                $imap->selectFolder('INBOX');
+
+                $q        = '"' . addcslashes($query, '"\\') . '"';
+                $criteria = "OR SUBJECT {$q} FROM {$q}";
+                $uids     = array_slice($imap->search($criteria), 0, self::MAX_RESULTS);
+                $total    = count($uids);
+                $messages = $imap->fetchHeadersByUids($uids);
+                $messages = $this->formatDates($messages);
+            }
+
+            $imap->logout();
+
+        } catch (\Throwable $e) {
+            $imap->close();
+            $error = $e->getMessage();
+        }
+
         return view(mailView('search.index'), [
-            'query'    => $request->get('q', ''),
-            'messages' => [],
+            'folders'       => $folders,
+            'currentFolder' => '',
+            'query'         => $query,
+            'messages'      => $messages,
+            'total'         => $total,
+            'error'         => $error,
         ]);
+    }
+
+    // ------------------------------------------------------------------
+
+    private function formatDates(array $messages): array
+    {
+        $now = Carbon::now();
+
+        return array_map(function (array $msg) use ($now): array {
+            try {
+                $dt = Carbon::parse($msg['date_raw']);
+                $msg['date_formatted'] = $dt->isToday()
+                    ? $dt->format('g:i A')
+                    : ($dt->isSameYear($now) ? $dt->format('M j') : $dt->format('M j, Y'));
+            } catch (\Throwable) {
+                $msg['date_formatted'] = $msg['date_raw'];
+            }
+            return $msg;
+        }, $messages);
     }
 }

@@ -299,6 +299,102 @@ class ImapConnection
         return array_values($messages);
     }
 
+    /**
+     * Search for messages matching IMAP search criteria.
+     * Must call selectFolder() first.
+     * Returns UIDs sorted newest-first (highest UID first).
+     *
+     * Example criteria: 'OR SUBJECT "hello" FROM "hello"'
+     *
+     * @return int[]
+     */
+    public function search(string $criteria): array
+    {
+        $result = $this->command("UID SEARCH {$criteria}");
+
+        $uids = [];
+        foreach ($result['untagged'] as $line) {
+            if (str_starts_with($line, '* SEARCH')) {
+                $part = trim(substr($line, strlen('* SEARCH')));
+                if ($part !== '') {
+                    $uids = array_values(array_map('intval', explode(' ', $part)));
+                }
+                break;
+            }
+        }
+
+        rsort($uids);   // highest UID = most recent message
+        return $uids;
+    }
+
+    /**
+     * Fetch message headers for an explicit list of UIDs.
+     * Must call selectFolder() first.
+     *
+     * Returns messages in the same order as $uids (caller controls ordering).
+     *
+     * @param  int[] $uids
+     * @return array<array{seq: int, uid: int, flags: string[], seen: bool, flagged: bool, from: array{name: string, email: string}, subject: string, date_raw: string}>
+     */
+    public function fetchHeadersByUids(array $uids): array
+    {
+        if (empty($uids)) {
+            return [];
+        }
+
+        $uidList = implode(',', $uids);
+        $result  = $this->command(
+            "UID FETCH {$uidList} (UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])"
+        );
+
+        $byUid = [];
+
+        foreach ($result['untagged'] as $line) {
+            if (!preg_match('/^\* (\d+) FETCH /i', $line, $sm)) {
+                continue;
+            }
+            $seq = (int) $sm[1];
+
+            $uid = 0;
+            if (preg_match('/\bUID (\d+)/i', $line, $m)) {
+                $uid = (int) $m[1];
+            }
+
+            $flags = [];
+            if (preg_match('/\bFLAGS \(([^)]*)\)/i', $line, $m)) {
+                $flags = array_values(array_filter(explode(' ', trim($m[1]))));
+            }
+
+            $rawHeaders = '';
+            if (preg_match('/\{(\d+)\}\r\n/', $line, $lm, PREG_OFFSET_CAPTURE)) {
+                $n          = (int) $lm[1][0];
+                $dataStart  = (int) $lm[0][1] + strlen($lm[0][0]);
+                $rawHeaders = substr($line, $dataStart, $n);
+            }
+
+            $byUid[$uid] = [
+                'seq'      => $seq,
+                'uid'      => $uid,
+                'flags'    => $flags,
+                'seen'     => in_array('\\Seen', $flags, true),
+                'flagged'  => in_array('\\Flagged', $flags, true),
+                'from'     => $this->parseFrom($this->decodeMimeHeader($this->parseHeader($rawHeaders, 'From'))),
+                'subject'  => $this->decodeMimeHeader($this->parseHeader($rawHeaders, 'Subject')) ?: '(no subject)',
+                'date_raw' => $this->parseHeader($rawHeaders, 'Date'),
+            ];
+        }
+
+        // Return in the caller-supplied UID order
+        $ordered = [];
+        foreach ($uids as $uid) {
+            if (isset($byUid[$uid])) {
+                $ordered[] = $byUid[$uid];
+            }
+        }
+
+        return $ordered;
+    }
+
     // ------------------------------------------------------------------
     // Raw protocol helpers
     // ------------------------------------------------------------------

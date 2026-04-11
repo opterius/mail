@@ -24,7 +24,32 @@
 
 @section('content')
 <div class="flex flex-col h-full"
-     x-data="{ showCc: {{ $cc !== '' ? 'true' : 'false' }}, showBcc: false }">
+     x-data="{
+         showCc:  {{ $cc !== '' ? 'true' : 'false' }},
+         showBcc: false,
+         toSug:   [],
+         ccSug:   [],
+         bccSug:  [],
+         async suggest(field, val) {
+             const last = val.split(',').pop().trim();
+             if (last.length < 2) { this[field + 'Sug'] = []; return; }
+             try {
+                 const r = await fetch('{{ route('contacts.autocomplete') }}?q=' + encodeURIComponent(last));
+                 this[field + 'Sug'] = await r.json();
+             } catch { this[field + 'Sug'] = []; }
+         },
+         pick(field, inputId, contact) {
+             const el = document.getElementById(inputId);
+             const parts = el.value.split(',');
+             const label = contact.name
+                 ? contact.name + ' <' + contact.email + '>'
+                 : contact.email;
+             parts[parts.length - 1] = ' ' + label;
+             el.value = parts.join(',').replace(/^\s*,?\s*/, '');
+             this[field + 'Sug'] = [];
+             el.focus();
+         }
+     }">
 
     {{-- Toolbar --}}
     <div class="flex items-center gap-2 px-6 py-3 border-b border-gray-100 bg-white sticky top-0 z-10">
@@ -61,29 +86,45 @@
             </div>
 
             {{-- To --}}
-            <div class="flex items-center gap-3 py-2.5">
-                <label for="to" class="w-14 text-xs font-medium text-gray-400 flex-shrink-0 text-right">To</label>
-                <input id="to"
-                       name="to"
-                       type="text"
-                       value="{{ old('to', $to) }}"
-                       placeholder="recipient@example.com"
-                       autocomplete="off"
-                       class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300
-                              @error('to') border-b border-red-400 @enderror">
-                <div class="flex items-center gap-1 flex-shrink-0">
-                    <button type="button"
-                            @click="showCc = !showCc"
-                            :class="showCc ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'"
-                            class="px-2 py-1 text-xs font-medium transition-colors">
-                        Cc
-                    </button>
-                    <button type="button"
-                            @click="showBcc = !showBcc"
-                            :class="showBcc ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'"
-                            class="px-2 py-1 text-xs font-medium transition-colors">
-                        Bcc
-                    </button>
+            <div class="relative py-2.5">
+                <div class="flex items-center gap-3">
+                    <label for="to" class="w-14 text-xs font-medium text-gray-400 flex-shrink-0 text-right">To</label>
+                    <input id="to"
+                           name="to"
+                           type="text"
+                           value="{{ old('to', $to) }}"
+                           placeholder="recipient@example.com"
+                           autocomplete="off"
+                           @input="suggest('to', $event.target.value)"
+                           @keydown.escape="toSug = []"
+                           class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300
+                                  @error('to') border-b border-red-400 @enderror">
+                    <div class="flex items-center gap-1 flex-shrink-0">
+                        <button type="button"
+                                @click="showCc = !showCc"
+                                :class="showCc ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'"
+                                class="px-2 py-1 text-xs font-medium transition-colors">Cc</button>
+                        <button type="button"
+                                @click="showBcc = !showBcc"
+                                :class="showBcc ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'"
+                                class="px-2 py-1 text-xs font-medium transition-colors">Bcc</button>
+                    </div>
+                </div>
+                {{-- To suggestions --}}
+                <div x-show="toSug.length > 0" x-cloak @click.outside="toSug = []"
+                     class="absolute left-[4.25rem] right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden">
+                    <template x-for="c in toSug" :key="c.email">
+                        <button type="button" @click="pick('to', 'to', c)"
+                                class="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors">
+                            <div class="w-7 h-7 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center
+                                        text-xs font-semibold uppercase flex-shrink-0"
+                                 x-text="(c.name || c.email).charAt(0).toUpperCase()"></div>
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-800 truncate" x-text="c.name || c.email"></p>
+                                <p x-show="c.name" class="text-xs text-gray-400 truncate" x-text="c.email"></p>
+                            </div>
+                        </button>
+                    </template>
                 </div>
             </div>
 
@@ -92,27 +133,65 @@
             @enderror
 
             {{-- CC --}}
-            <div class="flex items-center gap-3 py-2.5" x-show="showCc" x-cloak>
-                <label for="cc" class="w-14 text-xs font-medium text-gray-400 flex-shrink-0 text-right">Cc</label>
-                <input id="cc"
-                       name="cc"
-                       type="text"
-                       value="{{ old('cc', $cc) }}"
-                       placeholder="cc@example.com"
-                       autocomplete="off"
-                       class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300">
+            <div class="relative py-2.5" x-show="showCc" x-cloak>
+                <div class="flex items-center gap-3">
+                    <label for="cc" class="w-14 text-xs font-medium text-gray-400 flex-shrink-0 text-right">Cc</label>
+                    <input id="cc"
+                           name="cc"
+                           type="text"
+                           value="{{ old('cc', $cc) }}"
+                           placeholder="cc@example.com"
+                           autocomplete="off"
+                           @input="suggest('cc', $event.target.value)"
+                           @keydown.escape="ccSug = []"
+                           class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300">
+                </div>
+                <div x-show="ccSug.length > 0" x-cloak @click.outside="ccSug = []"
+                     class="absolute left-[4.25rem] right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden">
+                    <template x-for="c in ccSug" :key="c.email">
+                        <button type="button" @click="pick('cc', 'cc', c)"
+                                class="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors">
+                            <div class="w-7 h-7 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center
+                                        text-xs font-semibold uppercase flex-shrink-0"
+                                 x-text="(c.name || c.email).charAt(0).toUpperCase()"></div>
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-800 truncate" x-text="c.name || c.email"></p>
+                                <p x-show="c.name" class="text-xs text-gray-400 truncate" x-text="c.email"></p>
+                            </div>
+                        </button>
+                    </template>
+                </div>
             </div>
 
             {{-- BCC --}}
-            <div class="flex items-center gap-3 py-2.5" x-show="showBcc" x-cloak>
-                <label for="bcc" class="w-14 text-xs font-medium text-gray-400 flex-shrink-0 text-right">Bcc</label>
-                <input id="bcc"
-                       name="bcc"
-                       type="text"
-                       value="{{ old('bcc') }}"
-                       placeholder="bcc@example.com"
-                       autocomplete="off"
-                       class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300">
+            <div class="relative py-2.5" x-show="showBcc" x-cloak>
+                <div class="flex items-center gap-3">
+                    <label for="bcc" class="w-14 text-xs font-medium text-gray-400 flex-shrink-0 text-right">Bcc</label>
+                    <input id="bcc"
+                           name="bcc"
+                           type="text"
+                           value="{{ old('bcc') }}"
+                           placeholder="bcc@example.com"
+                           autocomplete="off"
+                           @input="suggest('bcc', $event.target.value)"
+                           @keydown.escape="bccSug = []"
+                           class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300">
+                </div>
+                <div x-show="bccSug.length > 0" x-cloak @click.outside="bccSug = []"
+                     class="absolute left-[4.25rem] right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden">
+                    <template x-for="c in bccSug" :key="c.email">
+                        <button type="button" @click="pick('bcc', 'bcc', c)"
+                                class="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors">
+                            <div class="w-7 h-7 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center
+                                        text-xs font-semibold uppercase flex-shrink-0"
+                                 x-text="(c.name || c.email).charAt(0).toUpperCase()"></div>
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-gray-800 truncate" x-text="c.name || c.email"></p>
+                                <p x-show="c.name" class="text-xs text-gray-400 truncate" x-text="c.email"></p>
+                            </div>
+                        </button>
+                    </template>
+                </div>
             </div>
 
             {{-- Subject --}}

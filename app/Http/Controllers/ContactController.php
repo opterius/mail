@@ -23,32 +23,117 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Contact;
 use Illuminate\Http\Request;
 
 class ContactController extends Controller
 {
-    public function index()
+    public function index(): mixed
     {
-        return view(mailView('contacts.index'), ['contacts' => []]);
+        $contacts = Contact::where('owner_email', $this->ownerEmail())
+            ->orderBy('name')
+            ->orderBy('email')
+            ->get();
+
+        return view(mailView('contacts.index'), [
+            'contacts'      => $contacts,
+            'folders'       => [],
+            'currentFolder' => '',
+        ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): mixed
     {
-        return redirect()->route('contacts');
+        $data = $request->validate([
+            'name'  => ['nullable', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        Contact::updateOrCreate(
+            ['owner_email' => $this->ownerEmail(), 'email' => $data['email']],
+            ['name' => $data['name'] ?? '', 'phone' => $data['phone'] ?? '', 'notes' => $data['notes'] ?? ''],
+        );
+
+        return redirect()->route('contacts')->with('success', 'Contact saved.');
     }
 
-    public function show(int $contact)
+    public function show(Contact $contact): mixed
     {
-        return view(mailView('contacts.show'), compact('contact'));
+        $this->authorise($contact);
+
+        return view(mailView('contacts.show'), [
+            'contact'       => $contact,
+            'folders'       => [],
+            'currentFolder' => '',
+        ]);
     }
 
-    public function update(Request $request, int $contact)
+    public function update(Request $request, Contact $contact): mixed
     {
-        return redirect()->route('contacts');
+        $this->authorise($contact);
+
+        $data = $request->validate([
+            'name'  => ['nullable', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $contact->update([
+            'name'  => $data['name']  ?? '',
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? '',
+            'notes' => $data['notes'] ?? '',
+        ]);
+
+        return redirect()->route('contacts')->with('success', 'Contact updated.');
     }
 
-    public function destroy(int $contact)
+    public function destroy(Contact $contact): mixed
     {
-        return redirect()->route('contacts');
+        $this->authorise($contact);
+        $contact->delete();
+
+        return redirect()->route('contacts')->with('success', 'Contact deleted.');
+    }
+
+    /**
+     * JSON endpoint for compose autocomplete.
+     * GET /contacts/search?q=...
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function autocomplete(Request $request): mixed
+    {
+        $q = trim($request->get('q', ''));
+
+        if (strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        $contacts = Contact::where('owner_email', $this->ownerEmail())
+            ->where(function ($query) use ($q) {
+                $query->where('name', 'like', "%{$q}%")
+                      ->orWhere('email', 'like', "%{$q}%");
+            })
+            ->orderBy('name')
+            ->limit(10)
+            ->get(['name', 'email']);
+
+        return response()->json($contacts);
+    }
+
+    // ------------------------------------------------------------------
+
+    private function ownerEmail(): string
+    {
+        return auth('web')->user()->email;
+    }
+
+    private function authorise(Contact $contact): void
+    {
+        abort_unless($contact->owner_email === $this->ownerEmail(), 403);
     }
 }
