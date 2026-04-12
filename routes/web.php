@@ -30,8 +30,15 @@ use App\Http\Controllers\InboxController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\SsoController;
 use Illuminate\Support\Facades\Route;
+
+// ------------------------------------------------------------------
+// Internal agent sync (server-to-server, no CSRF)
+// ------------------------------------------------------------------
+
+Route::post('/api/sync/account', [SyncController::class, 'account']);
 
 // ------------------------------------------------------------------
 // Panel SSO routes

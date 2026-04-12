@@ -29,4 +29,9 @@ return [
     // Set PANEL_SSO_SECRET to the same value on the panel side.
     'sso_enabled' => env('PANEL_SSO_ENABLED', false),
     'sso_secret'  => env('PANEL_SSO_SECRET'),
+
+    // Agent account sync — shared secret for the /api/sync/account endpoint.
+    // Set this to match mail_sync_secret in the agent config.
+    // Leave blank to disable the sync endpoint (standalone mode).
+    'sync_secret' => env('MAIL_SYNC_SECRET'),
 ];
