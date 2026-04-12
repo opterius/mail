@@ -25,6 +25,7 @@ use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ComposeController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\FolderController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\SearchController;
@@ -98,4 +99,9 @@ Route::middleware('imap.auth')->group(function () {
 
     // Attachments
     Route::get('/attachment/{folder}/{uid}/{part}', [AttachmentController::class, 'download'])->name('attachment.download');
+
+    // Folder management (names in request body — not route segments — to allow slashes in names)
+    Route::post('/folders',   [FolderController::class, 'store'])->name('folders.store');
+    Route::put('/folders',    [FolderController::class, 'update'])->name('folders.update');
+    Route::delete('/folders', [FolderController::class, 'destroy'])->name('folders.destroy');
 });

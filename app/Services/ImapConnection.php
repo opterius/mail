@@ -150,6 +150,35 @@ class ImapConnection
     }
 
     /**
+     * Create a new IMAP mailbox.
+     */
+    public function createFolder(string $name): bool
+    {
+        $n = '"' . addcslashes($name, '"\\') . '"';
+        return $this->command("CREATE {$n}")['ok'];
+    }
+
+    /**
+     * Rename an existing IMAP mailbox.
+     */
+    public function renameFolder(string $from, string $to): bool
+    {
+        $f = '"' . addcslashes($from, '"\\') . '"';
+        $t = '"' . addcslashes($to, '"\\') . '"';
+        return $this->command("RENAME {$f} {$t}")['ok'];
+    }
+
+    /**
+     * Delete an IMAP mailbox.
+     * The mailbox must be empty (no messages) on most servers.
+     */
+    public function deleteFolder(string $name): bool
+    {
+        $n = '"' . addcslashes($name, '"\\') . '"';
+        return $this->command("DELETE {$n}")['ok'];
+    }
+
+    /**
      * Get MESSAGES and UNSEEN counts for a folder without selecting it.
      *
      * @return array{messages: int, unseen: int}
