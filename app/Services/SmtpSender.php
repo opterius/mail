@@ -35,7 +35,8 @@ use Symfony\Component\Mime\Email;
 class SmtpSender
 {
     /**
-     * Send a message.
+     * Send a message. Returns the raw RFC 5322 message bytes so callers can
+     * APPEND a copy to the user's Sent folder via IMAP.
      *
      * @throws \Throwable on SMTP or addressing errors
      */
@@ -49,7 +50,7 @@ class SmtpSender
         string $bodyHtml = '',
         string $cc = '',
         string $bcc = '',
-    ): void {
+    ): string {
         $transport = $this->buildTransport($fromEmail, $password);
 
         $email = (new Email())
@@ -74,6 +75,8 @@ class SmtpSender
         }
 
         (new SymfonyMailer($transport))->send($email);
+
+        return $email->toString();
     }
 
     // ------------------------------------------------------------------

@@ -138,7 +138,7 @@ class ComposeController extends Controller
         }
 
         try {
-            (new SmtpSender())->send(
+            $rawMessage = (new SmtpSender())->send(
                 fromEmail: $email,
                 fromName:  $name,
                 password:  $password,
@@ -156,6 +156,10 @@ class ComposeController extends Controller
                 ip:             $request->ip(),
                 status:         'sent',
             );
+
+            // Save a copy to the user's Sent folder. Failure here must not
+            // surface to the user — the message was already delivered.
+            $this->saveToSent($guard, $rawMessage);
         } catch (\Throwable $e) {
             MailSendLog::record(
                 email:          $email,
@@ -271,6 +275,72 @@ class ComposeController extends Controller
             'fromEmail'     => $guard->user()->email,
             'fromName'      => $settings->display_name ?: $guard->user()->name,
         ]));
+    }
+
+    /**
+     * APPEND the just-sent message to the user's Sent folder. Creates the
+     * folder if it doesn't exist. Silent on failure — delivery already
+     * succeeded by the time this runs.
+     */
+    private function saveToSent(ImapGuard $guard, string $rawMessage): void
+    {
+        $imap = new ImapConnection();
+        try {
+            $imap->connect(
+                host:         config('imap.host'),
+                port:         config('imap.port'),
+                encryption:   config('imap.encryption'),
+                validateCert: config('imap.validate_cert', false),
+                timeout:      config('imap.timeout', 10),
+            );
+            $imap->login($guard->getImapLogin(), $guard->getImapPassword());
+
+            $sentFolder = $this->resolveSentFolder($imap);
+
+            // APPEND with \Seen so it doesn't show as unread in Sent.
+            if (!$imap->appendMessage($sentFolder, $rawMessage, ['\\Seen'])) {
+                // First attempt failed — folder may not exist. Try to create it then retry once.
+                if ($imap->createFolder($sentFolder)) {
+                    $imap->appendMessage($sentFolder, $rawMessage, ['\\Seen']);
+                }
+            }
+
+            $imap->logout();
+        } catch (\Throwable) {
+            $imap->close();
+        }
+    }
+
+    /**
+     * Find the user's Sent folder by SPECIAL-USE \Sent attribute, falling
+     * back to common naming conventions, then plain "Sent".
+     */
+    private function resolveSentFolder(ImapConnection $imap): string
+    {
+        try {
+            $folders = $imap->listFolders();
+        } catch (\Throwable) {
+            return 'Sent';
+        }
+
+        // 1. Server-advertised \Sent SPECIAL-USE attribute.
+        foreach ($folders as $folder) {
+            if (in_array('\\sent', $folder['attributes'], true)) {
+                return $folder['name'];
+            }
+        }
+
+        // 2. Common case-insensitive names (covers Sent, Sent Items, INBOX.Sent).
+        $candidates = ['Sent', 'INBOX.Sent', 'Sent Items', 'Sent Messages'];
+        foreach ($candidates as $candidate) {
+            foreach ($folders as $folder) {
+                if (strcasecmp($folder['name'], $candidate) === 0) {
+                    return $folder['name'];
+                }
+            }
+        }
+
+        return 'Sent';
     }
 
     private function fetchFolders(ImapGuard $guard): array

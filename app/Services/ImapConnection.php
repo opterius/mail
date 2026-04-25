@@ -159,6 +159,51 @@ class ImapConnection
     }
 
     /**
+     * APPEND a raw RFC 5322 message to a folder. Used for saving sent messages
+     * to the Sent folder, drafts to Drafts, etc.
+     *
+     * Sends:  TAG APPEND "folder" (\Seen) {N}
+     *         + Ready
+     *         <N bytes>
+     *         TAG OK APPEND completed
+     */
+    public function appendMessage(string $folder, string $rawMessage, array $flags = ['\\Seen']): bool
+    {
+        if ($this->stream === null) {
+            return false;
+        }
+
+        // Normalize CR/LF — IMAP requires CRLF and the byte count must match exactly.
+        $normalized = preg_replace("/\r\n|\r|\n/", "\r\n", $rawMessage);
+        $bytes      = strlen($normalized);
+        $flagList   = $flags === [] ? '' : ' (' . implode(' ', $flags) . ')';
+        $folderArg  = '"' . addcslashes($folder, '"\\') . '"';
+        $tag        = $this->nextTag();
+
+        // Send command + literal length, wait for "+ continuation" reply.
+        fwrite($this->stream, "{$tag} APPEND {$folderArg}{$flagList} {{$bytes}}\r\n");
+
+        $line = $this->readline();
+        if ($line === null || !str_starts_with($line, '+')) {
+            return false;
+        }
+
+        // Send the message bytes followed by CRLF terminator.
+        fwrite($this->stream, $normalized . "\r\n");
+
+        // Drain until the tagged response.
+        while (true) {
+            $resp = $this->readResponse();
+            if ($resp === null) {
+                return false;
+            }
+            if (str_starts_with($resp, "{$tag} ")) {
+                return str_starts_with($resp, "{$tag} OK");
+            }
+        }
+    }
+
+    /**
      * Rename an existing IMAP mailbox.
      */
     public function renameFolder(string $from, string $to): bool
