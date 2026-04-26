@@ -56,6 +56,8 @@ class MimeParser
             'cc'              => $this->parseAddressList($this->decodeHeader($headers['cc'] ?? '')),
             'subject'         => $this->decodeHeader($headers['subject'] ?? '') ?: '(no subject)',
             'date_raw'        => $headers['date'] ?? '',
+            'message_id'      => trim($headers['message-id'] ?? ''),
+            'receipt_to'      => $this->parseSingleAddress($this->decodeHeader($headers['disposition-notification-to'] ?? '')),
             'body_html'       => '',
             'body_text'       => '',
             'has_attachments' => false,

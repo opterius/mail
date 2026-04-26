@@ -68,7 +68,11 @@ class SettingController extends Controller
             'image_loading'  => ['required', 'string', 'in:ask,always,never'],
             'reply_behavior' => ['required', 'string', 'in:reply,reply_all'],
             'theme'          => ['required', 'string', 'in:light,dark'],
+            'read_receipt'   => ['required', 'string', 'in:ask,always,never'],
         ]);
+
+        // Checkboxes are absent from the form when unchecked
+        $data['notifications_enabled'] = $request->boolean('notifications_enabled');
 
         UserSetting::updateOrCreate(
             ['email' => auth('web')->user()->email],

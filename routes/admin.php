@@ -34,6 +34,7 @@ use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Admin\QueueController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SpamController;
+use App\Http\Controllers\Admin\UsageController;
 use Illuminate\Support\Facades\Route;
 
 // ------------------------------------------------------------------
@@ -78,6 +79,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Accounts
         Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
         Route::get('/accounts/create', [AccountController::class, 'create'])->name('accounts.create');
+        Route::get('/accounts/usage', [UsageController::class, 'index'])->name('accounts.usage');
         Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');
         Route::get('/accounts/{mail_account}/edit', [AccountController::class, 'edit'])->name('accounts.edit');
         Route::put('/accounts/{mail_account}', [AccountController::class, 'update'])->name('accounts.update');

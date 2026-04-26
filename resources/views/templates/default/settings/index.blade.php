@@ -150,6 +150,38 @@
                 </div>
             </section>
 
+            {{-- Notifications --}}
+            <section>
+                <h2 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Browser Notifications</h2>
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" name="notifications_enabled" value="1"
+                           {{ old('notifications_enabled', $settings->notifications_enabled) ? 'checked' : '' }}
+                           class="mt-0.5 w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400">
+                    <div>
+                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Enable desktop notifications for new mail</p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Your browser will ask for permission the first time. Uncheck to suppress all new-mail notifications.</p>
+                    </div>
+                </label>
+            </section>
+
+            {{-- Read Receipts --}}
+            <section>
+                <h2 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Read Receipts</h2>
+                <div>
+                    <label for="read_receipt" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        When a message requests a read receipt
+                    </label>
+                    <select id="read_receipt" name="read_receipt"
+                            class="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg
+                                   bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 outline-none
+                                   focus:ring-2 focus:ring-orange-400 focus:border-transparent">
+                        <option value="ask"    {{ old('read_receipt', $settings->read_receipt) === 'ask'    ? 'selected' : '' }}>Ask me each time</option>
+                        <option value="always" {{ old('read_receipt', $settings->read_receipt) === 'always' ? 'selected' : '' }}>Always send automatically</option>
+                        <option value="never"  {{ old('read_receipt', $settings->read_receipt) === 'never'  ? 'selected' : '' }}>Never send</option>
+                    </select>
+                </div>
+            </section>
+
             {{-- Save --}}
             <div class="pt-2 border-t border-gray-100 dark:border-gray-700">
                 <button type="submit"

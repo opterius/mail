@@ -40,23 +40,28 @@ class UserSetting extends Model
         'theme',
         'template',
         'sieve_rules',
+        'notifications_enabled',
+        'read_receipt',
     ];
 
     protected $casts = [
-        'per_page' => 'integer',
+        'per_page'              => 'integer',
+        'notifications_enabled' => 'boolean',
     ];
 
     /** Default values used when no row exists yet. */
     public static function defaults(): array
     {
         return [
-            'display_name'   => '',
-            'signature'      => '',
-            'per_page'       => 25,
-            'image_loading'  => 'ask',
-            'reply_behavior' => 'reply',
-            'theme'          => 'light',
-            'template'       => null,
+            'display_name'          => '',
+            'signature'             => '',
+            'per_page'              => 25,
+            'image_loading'         => 'ask',
+            'reply_behavior'        => 'reply',
+            'theme'                 => 'light',
+            'template'              => null,
+            'notifications_enabled' => true,
+            'read_receipt'          => 'ask',
         ];
     }
 }

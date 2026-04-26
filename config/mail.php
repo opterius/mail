@@ -122,4 +122,9 @@ return [
     // Optional sa-learn binary for spam training
     'salearn_path'  => env('SALEARN_PATH', ''),
 
+    // Base path for Dovecot virtual-hosted mailboxes (e.g. /var/mail/vhosts)
+    // Used by the admin usage report to run 'du -sm' per account directory.
+    // Leave empty to disable disk-usage reporting.
+    'vhosts_path'   => env('MAIL_VHOSTS_PATH', ''),
+
 ];

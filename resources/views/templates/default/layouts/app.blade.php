@@ -393,7 +393,7 @@
             updateBadge(data.unseen);
 
             // Browser notification on genuinely new mail (UIDNEXT increased)
-            if (data.has_new && !notifShown) {
+            if (notificationsEnabled && data.has_new && !notifShown) {
                 notifShown = true;
                 setTimeout(function () { notifShown = false; }, 10000);
 
@@ -409,8 +409,10 @@
         .catch(function () { /* ignore network errors */ });
     }
 
-    // Request notification permission once (non-blocking)
-    if ('Notification' in window && Notification.permission === 'default') {
+    var notificationsEnabled = {{ userSettings()->notifications_enabled ? 'true' : 'false' }};
+
+    // Request notification permission once (non-blocking) when user has enabled notifications
+    if (notificationsEnabled && 'Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
     }
 

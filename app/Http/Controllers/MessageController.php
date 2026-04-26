@@ -83,11 +83,55 @@ class MessageController extends Controller
         $message['flags']          = $fetched['flags'];
         $message['date_formatted'] = $this->formatDate($message['date_raw']);
 
+        $receiptSetting = userSettings()->read_receipt ?? 'ask';
+        $receiptTo      = $message['receipt_to']['email'] ?? '';
+
         return view(mailView('inbox.message'), [
-            'folders'       => $folders,
-            'currentFolder' => $folder,
-            'message'       => $message,
+            'folders'        => $folders,
+            'currentFolder'  => $folder,
+            'message'        => $message,
+            'receiptTo'      => $receiptTo,
+            'receiptSetting' => $receiptSetting,
         ]);
+    }
+
+    public function print(Request $request, string $folder, string $uid): mixed
+    {
+        /** @var \App\Auth\ImapGuard $guard */
+        $guard  = auth('web');
+        $uidInt = (int) $uid;
+
+        $imap = new ImapConnection();
+        try {
+            $imap->connect(
+                host:         config('imap.host'),
+                port:         config('imap.port'),
+                encryption:   config('imap.encryption'),
+                validateCert: config('imap.validate_cert', false),
+                timeout:      config('imap.timeout', 10),
+            );
+            $imap->login($guard->getImapLogin(), $guard->getImapPassword());
+            $imap->selectFolder($folder);
+            $fetched = $imap->fetchMessageRaw($uidInt);
+            $imap->logout();
+        } catch (\Throwable $e) {
+            $imap->close();
+            return redirect()->route('inbox')->withErrors(['message' => $e->getMessage()]);
+        }
+
+        if ($fetched['raw'] === '') {
+            return redirect()->route('inbox');
+        }
+
+        $parser  = new MimeParser();
+        $message = $parser->parse($fetched['raw']);
+
+        $message['uid']            = $uidInt;
+        $message['folder']         = $folder;
+        $message['flags']          = $fetched['flags'];
+        $message['date_formatted'] = $this->formatDate($message['date_raw']);
+
+        return view(mailView('inbox.print'), compact('message'));
     }
 
     public function destroy(Request $request, string $folder, string $uid): mixed

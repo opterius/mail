@@ -34,6 +34,8 @@
 
     $spamUrl    = route('message.spam',     ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']]);
     $notSpamUrl = route('message.notspam',  ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']]);
+    $printUrl   = route('message.print',    ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']]);
+    $receiptUrl = route('message.receipt',  ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']]);
 
     // Build reply-quoted body as plain text for the inline reply form
     $replyQuote = '';
@@ -47,7 +49,7 @@
     $replyTo    = $fromName ? "{$fromName} <{$fromEmail}>" : $fromEmail;
     $replySubj  = preg_match('/^re:/i', $message['subject']) ? $message['subject'] : 'Re: ' . $message['subject'];
 @endphp
-
+@php
     $fromName  = $message['from']['name'] ?: $message['from']['email'];
     $fromEmail = $message['from']['email'];
     $initial   = mb_strtoupper(mb_substr($fromName, 0, 1, 'UTF-8'), 'UTF-8');
@@ -185,6 +187,17 @@
             </button>
             @endif
 
+            {{-- Print --}}
+            <a href="{{ $printUrl }}" target="_blank"
+               class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+               title="Print">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                </svg>
+                Print
+            </a>
+
             {{-- Delete --}}
             <form id="delete-form" method="POST"
                   action="{{ route('message.destroy', ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']]) }}"
@@ -272,6 +285,52 @@
             </div>
         </div>
     </div>
+
+    {{-- Read receipt banner --}}
+    @if($receiptTo !== '' && $receiptSetting !== 'never')
+    <div id="receipt-banner"
+         x-data="{ visible: true, sent: false, sending: false }"
+         x-show="visible"
+         x-cloak
+         class="flex items-center gap-3 px-6 py-2.5 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 text-sm">
+        <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0L9 14.5"/>
+        </svg>
+        <span class="flex-1 text-blue-700 dark:text-blue-300">
+            The sender requested a read receipt.
+        </span>
+        <span x-show="sent" x-cloak class="text-blue-600 dark:text-blue-400 font-medium">Receipt sent ✓</span>
+        @if($receiptSetting === 'ask')
+        <button x-show="!sent" @click="
+                sending = true;
+                fetch({{ Js::from($receiptUrl) }}, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': {{ Js::from(csrf_token()) }}, 'Accept': 'application/json' }
+                }).then(r => { sending = false; if (r.ok) sent = true; });
+            "
+            :disabled="sending"
+            class="flex-shrink-0 px-3 py-1 text-xs font-medium bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white rounded-lg transition-colors">
+            <span x-text="sending ? 'Sending…' : 'Send receipt'"></span>
+        </button>
+        <button x-show="!sent" @click="visible = false"
+                class="flex-shrink-0 text-xs text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors ml-1">
+            Dismiss
+        </button>
+        @endif
+        {{-- auto-send when setting is 'always' --}}
+        @if($receiptSetting === 'always')
+        <script>
+        (function() {
+            fetch({{ Js::from($receiptUrl) }}, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': {{ Js::from(csrf_token()) }}, 'Accept': 'application/json' }
+            });
+        })();
+        </script>
+        @endif
+    </div>
+    @endif
 
     {{-- Message body --}}
     <div class="flex-1 overflow-auto">
@@ -405,6 +464,7 @@
     var replyHref   = {{ Js::from($replyHref) }};
     var forwardHref = {{ Js::from($forwardHref) }};
     var backHref    = {{ Js::from($backHref) }};
+    var printUrl    = {{ Js::from($printUrl) }};
     var flagUrl     = {{ Js::from(route('message.flag',    ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']])) }};
     var spamUrl     = {{ Js::from(route('message.spam',    ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']])) }};
     var notSpamUrl  = {{ Js::from(route('message.notspam', ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']])) }};
@@ -466,6 +526,7 @@
                 if (btn) btn.click();
                 break;
             case 'f': window.location.href = forwardHref; break;
+            case 'p': window.open(printUrl, '_blank'); break;
             case 'u': markUnread(); break;
             case 'Escape': window.location.href = backHref; break;
             case 'Delete':
