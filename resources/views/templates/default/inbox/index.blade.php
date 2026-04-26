@@ -242,9 +242,11 @@
                     $destroyUrl = route('message.destroy', ['folder' => rawurlencode($currentFolder), 'uid' => $msg['uid']]);
                     $isUnread   = !$msg['seen'];
                     $uid        = $msg['uid'];
+                    $isSeen     = $msg['seen'];
                 @endphp
                 <li x-data="{
                         flagged: {{ $msg['flagged'] ? 'true' : 'false' }},
+                        seen: {{ $isSeen ? 'true' : 'false' }},
                         deleted: false,
                         toggleFlag() {
                             fetch({{ Js::from($flagUrl) }}, {
@@ -256,6 +258,17 @@
                                 },
                                 body: JSON.stringify({ flag: '\\\\Flagged', add: !this.flagged })
                             }).then(() => { this.flagged = !this.flagged; });
+                        },
+                        toggleSeen() {
+                            fetch({{ Js::from($flagUrl) }}, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': {{ Js::from(csrf_token()) }},
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify({ flag: '\\\\Seen', add: !this.seen })
+                            }).then(() => { this.seen = !this.seen; });
                         },
                         deleteMsg() {
                             fetch({{ Js::from($destroyUrl) }}, {
@@ -285,11 +298,9 @@
                                    class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-orange-500 focus:ring-orange-400 cursor-pointer">
                         </label>
 
-                        {{-- Unread dot --}}
+                        {{-- Unread dot — reactive to seen state --}}
                         <div class="flex-shrink-0 w-2">
-                            @if($isUnread)
-                                <div class="w-2 h-2 rounded-full bg-orange-500"></div>
-                            @endif
+                            <div class="w-2 h-2 rounded-full bg-orange-500" x-show="!seen"></div>
                         </div>
 
                         {{-- Avatar --}}
@@ -317,7 +328,7 @@
                         </a>
 
                         {{-- Right side: flagged indicator + hover quick actions --}}
-                        <div class="flex-shrink-0 flex items-center" style="width:60px" @click.stop>
+                        <div class="flex-shrink-0 flex items-center" style="width:88px" @click.stop>
                             {{-- Flagged star: visible when flagged, fades away on row hover --}}
                             <span x-show="flagged"
                                   class="transition-opacity duration-150 group-hover:opacity-0 pointer-events-none">
@@ -329,6 +340,24 @@
                             {{-- Quick actions: appear on row hover --}}
                             <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5 absolute"
                                  style="right: 20px">
+                                {{-- Mark read / unread --}}
+                                <button @click="toggleSeen()"
+                                        :title="seen ? 'Mark as unread' : 'Mark as read'"
+                                        class="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                                    <template x-if="seen">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                        </svg>
+                                    </template>
+                                    <template x-if="!seen">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0l-8 5-8-5"/>
+                                        </svg>
+                                    </template>
+                                </button>
+
                                 {{-- Flag / Unflag --}}
                                 <button @click="toggleFlag()"
                                         :title="flagged ? 'Unflag' : 'Flag'"

@@ -81,6 +81,18 @@
                 Forward
             </a>
 
+            {{-- Mark as unread --}}
+            <button id="mark-unread-btn"
+                    type="button"
+                    title="Mark as unread (u)"
+                    class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                Mark as unread
+            </button>
+
             {{-- Move to folder --}}
             @if(count($moveFolders) > 0)
             <div x-data="{ open: false }" class="relative">
@@ -252,6 +264,24 @@
     var replyHref   = {{ Js::from($replyHref) }};
     var forwardHref = {{ Js::from($forwardHref) }};
     var backHref    = {{ Js::from($backHref) }};
+    var flagUrl     = {{ Js::from(route('message.flag', ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']])) }};
+    var csrfToken   = {{ Js::from(csrf_token()) }};
+
+    function markUnread() {
+        fetch(flagUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ flag: '\\Seen', add: false }),
+        }).then(function (r) {
+            if (r.ok) { window.location.href = backHref; }
+        });
+    }
+
+    document.getElementById('mark-unread-btn').addEventListener('click', markUnread);
 
     function isTyping(el) {
         var tag = el.tagName;
@@ -265,7 +295,7 @@
         switch (e.key) {
             case 'r': window.location.href = replyHref;   break;
             case 'f': window.location.href = forwardHref; break;
-            case 'u':
+            case 'u': markUnread(); break;
             case 'Escape': window.location.href = backHref; break;
             case 'Delete':
             case 'Backspace':
