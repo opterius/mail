@@ -11,6 +11,7 @@
 
 @php
     $folderLabel = strtoupper($currentFolder) === 'INBOX' ? 'Inbox' : $currentFolder;
+    $avatarMap   = $avatarMap ?? [];
 
     $avatarColors = [
         'A' => '#ef4444','B' => '#f97316','C' => '#eab308','D' => '#22c55e',
@@ -259,11 +260,18 @@
                                     $tn = $tm['from']['name'] ?: $tm['from']['email'];
                                     $ti = mb_strtoupper(mb_substr($tn, 0, 1, 'UTF-8'), 'UTF-8');
                                     $tb = $avatarColors[$ti] ?? '#6366f1';
+                                    $tmEmail = $tm['from']['email'] ?? '';
                                 @endphp
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white uppercase border-2 border-white dark:border-gray-900"
-                                     style="background-color: {{ $tb }}; z-index: {{ 10 - $i }}">
-                                    {{ $ti }}
-                                </div>
+                                @if(!empty($avatarMap[$tmEmail]))
+                                    <img src="{{ $avatarMap[$tmEmail] }}" alt=""
+                                         class="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-gray-900"
+                                         style="z-index: {{ 10 - $i }}">
+                                @else
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white uppercase border-2 border-white dark:border-gray-900"
+                                         style="background-color: {{ $tb }}; z-index: {{ 10 - $i }}">
+                                        {{ $ti }}
+                                    </div>
+                                @endif
                             @endforeach
                         </div>
 
@@ -327,10 +335,16 @@
                                  x-show="!deleted"
                                  class="relative flex items-center gap-3 pl-8 pr-5 py-3 border-t border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 group transition-colors">
 
-                                <div class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white uppercase"
-                                     style="background-color: {{ $tb }}">
-                                    {{ $ti }}
-                                </div>
+                                @php $tmEmail2 = $tm['from']['email'] ?? ''; @endphp
+                                @if(!empty($avatarMap[$tmEmail2]))
+                                    <img src="{{ $avatarMap[$tmEmail2] }}" alt=""
+                                         class="flex-shrink-0 w-7 h-7 rounded-full object-cover">
+                                @else
+                                    <div class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white uppercase"
+                                         style="background-color: {{ $tb }}">
+                                        {{ $ti }}
+                                    </div>
+                                @endif
 
                                 <a href="{{ $th }}" class="flex-1 min-w-0">
                                     <div class="flex items-center justify-between gap-2">
@@ -394,10 +408,15 @@
                             <div class="w-2 h-2 rounded-full bg-orange-500" x-show="!seen"></div>
                         </div>
 
-                        <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white uppercase select-none shadow-sm"
-                             style="background-color: {{ $avatarBg }}">
-                            {{ $initial }}
-                        </div>
+                        @if(!empty($avatarMap[$msg['from']['email']]))
+                            <img src="{{ $avatarMap[$msg['from']['email']] }}" alt=""
+                                 class="flex-shrink-0 w-10 h-10 rounded-full object-cover shadow-sm">
+                        @else
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white uppercase select-none shadow-sm"
+                                 style="background-color: {{ $avatarBg }}">
+                                {{ $initial }}
+                            </div>
+                        @endif
 
                         <a href="{{ $href }}" class="flex-1 min-w-0">
                             <div class="flex items-center justify-between gap-3 mb-0.5">

@@ -21,31 +21,26 @@
  *  For custom changes, use the template and plugin system.
  */
 
-namespace App\Models;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-
-class Contact extends Model
+return new class extends Migration
 {
-    protected $fillable = ['owner_email', 'name', 'email', 'phone', 'notes', 'avatar', 'birthday', 'website', 'address'];
-
-    protected $casts = [
-        'birthday' => 'date',
-    ];
-
-    public function groups(): BelongsToMany
+    public function up(): void
     {
-        return $this->belongsToMany(ContactGroup::class);
+        Schema::table('contacts', function (Blueprint $table) {
+            $table->string('avatar')->nullable()->after('notes');
+            $table->date('birthday')->nullable()->after('avatar');
+            $table->string('website')->nullable()->after('birthday');
+            $table->text('address')->nullable()->after('website');
+        });
     }
 
-    public function avatarUrl(): ?string
+    public function down(): void
     {
-        return $this->avatar ? asset('storage/contact-avatars/' . $this->avatar) : null;
+        Schema::table('contacts', function (Blueprint $table) {
+            $table->dropColumn(['avatar', 'birthday', 'website', 'address']);
+        });
     }
-
-    public function initial(): string
-    {
-        return mb_strtoupper(mb_substr($this->name ?: $this->email, 0, 1, 'UTF-8'), 'UTF-8');
-    }
-}
+};

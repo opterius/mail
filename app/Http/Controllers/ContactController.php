@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 /**
  * Opterius Mail - Open source webmail.
@@ -24,21 +24,26 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+use App\Models\ContactGroup;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
 class ContactController extends Controller
 {
     public function index(): mixed
     {
-        $contacts = Contact::where('owner_email', $this->ownerEmail())
+        $owner    = $this->ownerEmail();
+        $contacts = Contact::where('owner_email', $owner)
+            ->with('groups')
             ->orderBy('name')
             ->orderBy('email')
             ->get();
 
+        $groups = ContactGroup::where('owner_email', $owner)->orderBy('name')->get();
+
         return view(mailView('contacts.index'), [
             'contacts'      => $contacts,
+            'groups'        => $groups,
             'folders'       => [],
             'currentFolder' => '',
         ]);
@@ -47,16 +52,40 @@ class ContactController extends Controller
     public function store(Request $request): mixed
     {
         $data = $request->validate([
-            'name'  => ['nullable', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:50'],
-            'notes' => ['nullable', 'string', 'max:2000'],
+            'name'     => ['nullable', 'string', 'max:255'],
+            'email'    => ['required', 'email', 'max:255'],
+            'phone'    => ['nullable', 'string', 'max:50'],
+            'notes'    => ['nullable', 'string', 'max:5000'],
+            'birthday' => ['nullable', 'date'],
+            'website'  => ['nullable', 'url', 'max:500'],
+            'address'  => ['nullable', 'string', 'max:1000'],
+            'groups'   => ['nullable', 'array'],
+            'groups.*' => ['integer', 'exists:contact_groups,id'],
+            'avatar'   => ['nullable', 'image', 'max:5120'],
         ]);
 
-        Contact::updateOrCreate(
+        $contact = Contact::updateOrCreate(
             ['owner_email' => $this->ownerEmail(), 'email' => $data['email']],
-            ['name' => $data['name'] ?? '', 'phone' => $data['phone'] ?? '', 'notes' => $data['notes'] ?? ''],
+            [
+                'name'     => $data['name']     ?? '',
+                'phone'    => $data['phone']    ?? '',
+                'notes'    => $data['notes']    ?? '',
+                'birthday' => $data['birthday'] ?? null,
+                'website'  => $data['website']  ?? null,
+                'address'  => $data['address']  ?? null,
+            ],
         );
+
+        if ($request->hasFile('avatar')) {
+            $avatar = $this->saveAvatar($contact->id, $request->file('avatar'));
+            if ($avatar) $contact->update(['avatar' => $avatar]);
+        }
+
+        $contact->groups()->sync($data['groups'] ?? []);
+
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true]);
+        }
 
         return redirect()->route('contacts')->with('success', 'Contact saved.');
     }
@@ -64,9 +93,12 @@ class ContactController extends Controller
     public function show(Contact $contact): mixed
     {
         $this->authorise($contact);
+        $contact->load('groups');
+        $groups = ContactGroup::where('owner_email', $this->ownerEmail())->orderBy('name')->get();
 
         return view(mailView('contacts.show'), [
             'contact'       => $contact,
+            'groups'        => $groups,
             'folders'       => [],
             'currentFolder' => '',
         ]);
@@ -77,43 +109,52 @@ class ContactController extends Controller
         $this->authorise($contact);
 
         $data = $request->validate([
-            'name'  => ['nullable', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:50'],
-            'notes' => ['nullable', 'string', 'max:2000'],
+            'name'     => ['nullable', 'string', 'max:255'],
+            'email'    => ['required', 'email', 'max:255'],
+            'phone'    => ['nullable', 'string', 'max:50'],
+            'notes'    => ['nullable', 'string', 'max:5000'],
+            'birthday' => ['nullable', 'date'],
+            'website'  => ['nullable', 'url', 'max:500'],
+            'address'  => ['nullable', 'string', 'max:1000'],
+            'groups'   => ['nullable', 'array'],
+            'groups.*' => ['integer', 'exists:contact_groups,id'],
+            'avatar'   => ['nullable', 'image', 'max:5120'],
         ]);
 
         $contact->update([
-            'name'  => $data['name']  ?? '',
-            'email' => $data['email'],
-            'phone' => $data['phone'] ?? '',
-            'notes' => $data['notes'] ?? '',
+            'name'     => $data['name']     ?? '',
+            'email'    => $data['email'],
+            'phone'    => $data['phone']    ?? '',
+            'notes'    => $data['notes']    ?? '',
+            'birthday' => $data['birthday'] ?? null,
+            'website'  => $data['website']  ?? null,
+            'address'  => $data['address']  ?? null,
         ]);
 
-        return redirect()->route('contacts')->with('success', 'Contact updated.');
+        if ($request->hasFile('avatar')) {
+            $this->deleteAvatar($contact->avatar);
+            $avatar = $this->saveAvatar($contact->id, $request->file('avatar'));
+            if ($avatar) $contact->update(['avatar' => $avatar]);
+        }
+
+        $contact->groups()->sync($data['groups'] ?? []);
+
+        return redirect()->route('contacts.show', $contact)->with('success', 'Contact updated.');
     }
 
     public function destroy(Contact $contact): mixed
     {
         $this->authorise($contact);
+        $this->deleteAvatar($contact->avatar);
         $contact->delete();
 
         return redirect()->route('contacts')->with('success', 'Contact deleted.');
     }
 
-    /**
-     * JSON endpoint for compose autocomplete.
-     * GET /contacts/search?q=...
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function autocomplete(Request $request): mixed
     {
         $q = trim($request->get('q', ''));
-
-        if (strlen($q) < 2) {
-            return response()->json([]);
-        }
+        if (strlen($q) < 2) return response()->json([]);
 
         $contacts = Contact::where('owner_email', $this->ownerEmail())
             ->where(function ($query) use ($q) {
@@ -122,15 +163,16 @@ class ContactController extends Controller
             })
             ->orderBy('name')
             ->limit(10)
-            ->get(['name', 'email']);
+            ->get(['name', 'email', 'avatar'])
+            ->map(fn($c) => [
+                'name'       => $c->name,
+                'email'      => $c->email,
+                'avatar_url' => $c->avatarUrl(),
+            ]);
 
         return response()->json($contacts);
     }
 
-    /**
-     * Export all contacts as vCard (.vcf) or CSV.
-     * GET /contacts/export?format=vcf|csv
-     */
     public function export(Request $request): mixed
     {
         $format   = $request->query('format', 'vcf');
@@ -138,11 +180,11 @@ class ContactController extends Controller
             ->orderBy('name')->orderBy('email')->get();
 
         if ($format === 'csv') {
-            $rows   = ["Name,Email,Phone,Notes\r\n"];
+            $rows = ["Name,Email,Phone,Birthday,Website,Address,Notes\r\n"];
             foreach ($contacts as $c) {
                 $rows[] = implode(',', array_map(
                     fn($v) => '"' . str_replace('"', '""', (string) $v) . '"',
-                    [$c->name, $c->email, $c->phone, $c->notes],
+                    [$c->name, $c->email, $c->phone, $c->birthday?->format('Y-m-d'), $c->website, $c->address, $c->notes],
                 )) . "\r\n";
             }
             return response(implode('', $rows), 200, [
@@ -151,20 +193,16 @@ class ContactController extends Controller
             ]);
         }
 
-        // vCard 3.0
         $vcards = '';
         foreach ($contacts as $c) {
             $vcards .= "BEGIN:VCARD\r\nVERSION:3.0\r\n";
-            if ($c->name !== '') {
-                $vcards .= 'FN:' . $this->vcardEscape($c->name) . "\r\n";
-            }
-            $vcards .= 'EMAIL:' . $this->vcardEscape($c->email) . "\r\n";
-            if ($c->phone !== '') {
-                $vcards .= 'TEL:' . $this->vcardEscape($c->phone) . "\r\n";
-            }
-            if ($c->notes !== '') {
-                $vcards .= 'NOTE:' . $this->vcardEscape($c->notes) . "\r\n";
-            }
+            if ($c->name)     $vcards .= 'FN:'    . $this->vcardEscape($c->name)    . "\r\n";
+            $vcards           .= 'EMAIL:' . $this->vcardEscape($c->email) . "\r\n";
+            if ($c->phone)    $vcards .= 'TEL:'   . $this->vcardEscape($c->phone)   . "\r\n";
+            if ($c->birthday) $vcards .= 'BDAY:'  . $c->birthday->format('Y-m-d')   . "\r\n";
+            if ($c->website)  $vcards .= 'URL:'   . $this->vcardEscape($c->website) . "\r\n";
+            if ($c->address)  $vcards .= 'ADR:;;' . $this->vcardEscape($c->address) . ";;;;\r\n";
+            if ($c->notes)    $vcards .= 'NOTE:'  . $this->vcardEscape($c->notes)   . "\r\n";
             $vcards .= "END:VCARD\r\n";
         }
 
@@ -174,63 +212,42 @@ class ContactController extends Controller
         ]);
     }
 
-    /**
-     * Import contacts from a vCard (.vcf) or CSV file.
-     * POST /contacts/import
-     */
     public function import(Request $request): mixed
     {
-        $request->validate([
-            'import_file' => ['required', 'file', 'mimes:vcf,csv,txt', 'max:2048'],
-        ]);
+        $request->validate(['import_file' => ['required', 'file', 'mimes:vcf,csv,txt', 'max:2048']]);
 
-        $file     = $request->file('import_file');
-        $content  = $file->get();
-        $ext      = strtolower($file->getClientOriginalExtension());
-        $owner    = $this->ownerEmail();
-        $imported = 0;
-        $skipped  = 0;
+        $file = $request->file('import_file');
+        $content = $file->get();
+        $ext = strtolower($file->getClientOriginalExtension());
+        $owner = $this->ownerEmail();
+        $imported = 0; $skipped = 0;
 
         if ($ext === 'csv' || $ext === 'txt') {
             $lines = preg_split('/\r?\n/', trim($content));
-            array_shift($lines); // skip header row
+            array_shift($lines);
             foreach ($lines as $line) {
-                if (trim($line) === '') {
-                    continue;
-                }
-                $cols  = str_getcsv($line);
-                $name  = trim($cols[0] ?? '');
+                if (trim($line) === '') continue;
+                $cols = str_getcsv($line);
                 $email = trim($cols[1] ?? '');
-                $phone = trim($cols[2] ?? '');
-                $notes = trim($cols[3] ?? '');
-                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $skipped++;
-                    continue;
-                }
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { $skipped++; continue; }
                 Contact::updateOrCreate(
                     ['owner_email' => $owner, 'email' => $email],
-                    ['name' => $name, 'phone' => $phone, 'notes' => $notes],
+                    ['name' => trim($cols[0] ?? ''), 'phone' => trim($cols[2] ?? ''),
+                     'birthday' => trim($cols[3] ?? '') ?: null, 'website' => trim($cols[4] ?? '') ?: null,
+                     'address' => trim($cols[5] ?? '') ?: null, 'notes' => trim($cols[6] ?? '')],
                 );
                 $imported++;
             }
         } else {
-            // Parse vCards
-            $vcards = preg_split('/END:VCARD/i', $content);
-            foreach ($vcards as $block) {
-                if (!preg_match('/BEGIN:VCARD/i', $block)) {
-                    continue;
-                }
+            foreach (preg_split('/END:VCARD/i', $content) as $block) {
+                if (!preg_match('/BEGIN:VCARD/i', $block)) continue;
                 $email = $this->vcardField($block, 'EMAIL');
-                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $skipped++;
-                    continue;
-                }
-                $name  = $this->vcardField($block, 'FN');
-                $phone = $this->vcardField($block, 'TEL');
-                $notes = $this->vcardField($block, 'NOTE');
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { $skipped++; continue; }
                 Contact::updateOrCreate(
                     ['owner_email' => $owner, 'email' => $email],
-                    ['name' => $name, 'phone' => $phone, 'notes' => $notes],
+                    ['name' => $this->vcardField($block, 'FN'), 'phone' => $this->vcardField($block, 'TEL'),
+                     'notes' => $this->vcardField($block, 'NOTE'), 'website' => $this->vcardField($block, 'URL') ?: null,
+                     'birthday' => $this->vcardField($block, 'BDAY') ?: null],
                 );
                 $imported++;
             }
@@ -252,6 +269,39 @@ class ContactController extends Controller
         abort_unless($contact->owner_email === $this->ownerEmail(), 403);
     }
 
+    private function saveAvatar(int $contactId, \Illuminate\Http\UploadedFile $file): string
+    {
+        if (!extension_loaded('gd')) return '';
+
+        $src = match($file->getMimeType()) {
+            'image/jpeg' => @imagecreatefromjpeg($file->path()),
+            'image/png'  => @imagecreatefrompng($file->path()),
+            'image/gif'  => @imagecreatefromgif($file->path()),
+            'image/webp' => @imagecreatefromwebp($file->path()),
+            default      => null,
+        };
+        if (!$src) return '';
+
+        $w = imagesx($src); $h = imagesy($src); $size = min($w, $h);
+        $dest = imagecreatetruecolor(200, 200);
+        imagecopyresampled($dest, $src, 0, 0, (int)(($w - $size) / 2), (int)(($h - $size) / 2), 200, 200, $size, $size);
+        imagedestroy($src);
+
+        $dir = storage_path('app/public/contact-avatars');
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+        $filename = "contact-{$contactId}.jpg";
+        imagejpeg($dest, "{$dir}/{$filename}", 85);
+        imagedestroy($dest);
+
+        return $filename;
+    }
+
+    private function deleteAvatar(?string $avatar): void
+    {
+        if ($avatar) Storage::delete("public/contact-avatars/{$avatar}");
+    }
+
     private function vcardEscape(string $value): string
     {
         return str_replace(["\r\n", "\n", "\r", ',', ';', '\\'], ['\n', '\n', '\n', '\,', '\;', '\\\\'], $value);
@@ -260,9 +310,7 @@ class ContactController extends Controller
     private function vcardField(string $block, string $field): string
     {
         if (preg_match('/^' . preg_quote($field, '/') . '[^:]*:(.*)/mi', $block, $m)) {
-            $val = trim($m[1]);
-            $val = str_replace(['\n', '\,', '\;', '\\\\'], ["\n", ',', ';', '\\'], $val);
-            return $val;
+            return str_replace(['\n', '\,', '\;', '\\\\'], ["\n", ',', ';', '\\'], trim($m[1]));
         }
         return '';
     }

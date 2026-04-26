@@ -38,6 +38,7 @@ use App\Http\Controllers\ReadReceiptController;
 use App\Http\Controllers\Api\CheckNewMailController;
 use App\Http\Controllers\Api\MessagesController;
 use App\Http\Controllers\Api\SyncController;
+use App\Http\Controllers\ContactGroupController;
 use App\Http\Controllers\SsoController;
 use Illuminate\Support\Facades\Route;
 
@@ -112,6 +113,11 @@ Route::middleware('imap.auth')->group(function () {
     Route::get('/contacts/{contact}', [ContactController::class, 'show'])->name('contacts.show');
     Route::put('/contacts/{contact}', [ContactController::class, 'update'])->name('contacts.update');
     Route::delete('/contacts/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');
+
+    // Contact groups
+    Route::post('/contact-groups', [ContactGroupController::class, 'store'])->name('contact-groups.store');
+    Route::put('/contact-groups/{contactGroup}', [ContactGroupController::class, 'update'])->name('contact-groups.update');
+    Route::delete('/contact-groups/{contactGroup}', [ContactGroupController::class, 'destroy'])->name('contact-groups.destroy');
 
     // Settings
     Route::get('/settings', [SettingController::class, 'index'])->name('settings');

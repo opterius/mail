@@ -121,6 +121,12 @@
              this.scheduleDraft();
          },
 
+         saveContactEmail: '',
+         saveContactName:  '',
+         saveContactOpen:  false,
+         saveContactDone:  false,
+         saveContactSaving: false,
+
          async suggest(field, val) {
              const last = val.split(',').pop().trim();
              if (last.length < 2) { this[field + 'Sug'] = []; return; }
@@ -138,7 +144,42 @@
              parts[parts.length - 1] = ' ' + label;
              el.value = parts.join(',').replace(/^\s*,?\s*/, '');
              this[field + 'Sug'] = [];
+             this.saveContactEmail = '';
              el.focus();
+         },
+         async checkContact(val) {
+             const last = val.split(',').pop().trim();
+             const m = last.match(/<([^>]+)>/);
+             const email = (m ? m[1] : last).trim();
+             if (!email.includes('@') || !email.includes('.')) { this.saveContactEmail = ''; return; }
+             try {
+                 const r = await fetch('{{ route('contacts.autocomplete') }}?q=' + encodeURIComponent(email));
+                 const list = await r.json();
+                 const found = list.some(c => c.email.toLowerCase() === email.toLowerCase());
+                 this.saveContactEmail = found ? '' : email;
+                 if (!found) { this.saveContactOpen = false; this.saveContactDone = false; }
+             } catch { this.saveContactEmail = ''; }
+         },
+         async saveContact() {
+             this.saveContactSaving = true;
+             const fd = new FormData();
+             fd.append('email', this.saveContactEmail);
+             fd.append('name',  this.saveContactName);
+             fd.append('_token', this.csrfToken);
+             try {
+                 const r = await fetch('{{ route('contacts.store') }}', {
+                     method: 'POST',
+                     headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': this.csrfToken },
+                     body: fd,
+                 });
+                 if (r.ok) {
+                     this.saveContactDone  = true;
+                     this.saveContactOpen  = false;
+                     this.saveContactEmail = '';
+                     this.saveContactName  = '';
+                 }
+             } catch {}
+             this.saveContactSaving = false;
          }
      }"
      @keydown.window.debounce.2000ms="resetDraftTimer()">
@@ -240,6 +281,7 @@
                            placeholder="recipient@example.com"
                            autocomplete="off"
                            @input="suggest('to', $event.target.value)"
+                           @blur="checkContact($event.target.value)"
                            @keydown.escape="toSug = []"
                            class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300
                                   @error('to') border-b border-red-400 @enderror">
@@ -259,12 +301,17 @@
                      class="absolute left-[4.25rem] right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden">
                     <template x-for="c in toSug" :key="c.email">
                         <button type="button" @click="pick('to', 'to', c)"
-                                class="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors">
-                            <div class="w-7 h-7 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center
-                                        text-xs font-semibold uppercase flex-shrink-0"
-                                 x-text="(c.name || c.email).charAt(0).toUpperCase()"></div>
+                                class="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <template x-if="c.avatar_url">
+                                <img :src="c.avatar_url" class="w-7 h-7 rounded-full object-cover flex-shrink-0">
+                            </template>
+                            <template x-if="!c.avatar_url">
+                                <div class="w-7 h-7 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center
+                                            text-xs font-semibold uppercase flex-shrink-0"
+                                     x-text="(c.name || c.email).charAt(0).toUpperCase()"></div>
+                            </template>
                             <div class="min-w-0">
-                                <p class="text-sm font-medium text-gray-800 truncate" x-text="c.name || c.email"></p>
+                                <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate" x-text="c.name || c.email"></p>
                                 <p x-show="c.name" class="text-xs text-gray-400 truncate" x-text="c.email"></p>
                             </div>
                         </button>
@@ -275,6 +322,38 @@
             @error('to')
                 <p class="text-xs text-red-500 pb-1 pl-[4.25rem]">{{ $message }}</p>
             @enderror
+
+            {{-- Add to address book banner --}}
+            <div x-show="saveContactEmail !== '' && !saveContactDone" x-cloak
+                 class="flex items-center gap-3 py-2 pl-[4.25rem]">
+                <span class="text-xs text-gray-500 dark:text-gray-400">
+                    Add <span x-text="saveContactEmail" class="font-medium text-gray-700 dark:text-gray-200"></span> to address book?
+                </span>
+                <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                    <div @click="saveContactOpen = !saveContactOpen"
+                         class="relative w-8 h-4 rounded-full transition-colors cursor-pointer"
+                         :class="saveContactOpen ? 'bg-orange-500' : 'bg-gray-300 dark:bg-gray-600'">
+                        <div class="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform"
+                             :class="saveContactOpen ? 'translate-x-4' : ''"></div>
+                    </div>
+                    <span class="text-xs text-gray-500 dark:text-gray-400" x-text="saveContactOpen ? 'Yes' : 'No'"></span>
+                </label>
+            </div>
+            <div x-show="saveContactOpen && saveContactEmail !== ''" x-cloak
+                 class="flex items-center gap-2 py-1.5 pl-[4.25rem]">
+                <input x-model="saveContactName" type="text" placeholder="Name (optional)"
+                       class="text-sm outline-none border-b border-gray-200 dark:border-gray-600 pb-0.5 focus:border-orange-400 bg-transparent dark:text-gray-100 w-44">
+                <button type="button" @click="saveContact()" :disabled="saveContactSaving"
+                        class="px-3 py-1 text-xs font-medium bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white rounded-lg transition-colors flex-shrink-0">
+                    <span x-text="saveContactSaving ? 'Saving…' : 'Save'"></span>
+                </button>
+                <button type="button" @click="saveContactOpen = false; saveContactEmail = ''"
+                        class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">Cancel</button>
+            </div>
+            <div x-show="saveContactDone" x-cloak
+                 class="py-1.5 pl-[4.25rem] text-xs text-green-600 dark:text-green-400">
+                Saved to contacts ✓
+            </div>
 
             {{-- CC --}}
             <div class="relative py-2.5" x-show="showCc" x-cloak>

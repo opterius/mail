@@ -21,31 +21,34 @@
  *  For custom changes, use the template and plugin system.
  */
 
-namespace App\Models;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-
-class Contact extends Model
+return new class extends Migration
 {
-    protected $fillable = ['owner_email', 'name', 'email', 'phone', 'notes', 'avatar', 'birthday', 'website', 'address'];
-
-    protected $casts = [
-        'birthday' => 'date',
-    ];
-
-    public function groups(): BelongsToMany
+    public function up(): void
     {
-        return $this->belongsToMany(ContactGroup::class);
+        Schema::create('contact_groups', function (Blueprint $table) {
+            $table->id();
+            $table->string('owner_email');
+            $table->string('name');
+            $table->string('color', 20)->default('gray');
+            $table->timestamps();
+
+            $table->index('owner_email');
+        });
+
+        Schema::create('contact_group_contact', function (Blueprint $table) {
+            $table->foreignId('contact_id')->constrained()->onDelete('cascade');
+            $table->foreignId('contact_group_id')->constrained('contact_groups')->onDelete('cascade');
+            $table->primary(['contact_id', 'contact_group_id']);
+        });
     }
 
-    public function avatarUrl(): ?string
+    public function down(): void
     {
-        return $this->avatar ? asset('storage/contact-avatars/' . $this->avatar) : null;
+        Schema::dropIfExists('contact_group_contact');
+        Schema::dropIfExists('contact_groups');
     }
-
-    public function initial(): string
-    {
-        return mb_strtoupper(mb_substr($this->name ?: $this->email, 0, 1, 'UTF-8'), 'UTF-8');
-    }
-}
+};

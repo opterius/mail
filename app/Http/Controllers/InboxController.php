@@ -24,6 +24,7 @@
 namespace App\Http\Controllers;
 
 use App\Auth\ImapGuard;
+use App\Models\Contact;
 use App\Services\ImapConnection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -104,11 +105,30 @@ class InboxController extends Controller
                 'total'         => 0,
                 'page'          => 1,
                 'totalPages'    => 1,
+                'avatarMap'     => [],
             ]);
         }
 
         // Group messages into threads by normalized subject
         $threads = $this->groupThreads($messages);
+
+        // Build a map of from-email → avatar URL for contacts that have a photo
+        $avatarMap = [];
+        $ownerEmail = $guard->getImapLogin();
+        if (!empty($messages)) {
+            $fromEmails = array_unique(array_filter(
+                array_map(fn($m) => $m['from']['email'] ?? '', $messages)
+            ));
+            if ($fromEmails) {
+                Contact::where('owner_email', $ownerEmail)
+                    ->whereIn('email', $fromEmails)
+                    ->whereNotNull('avatar')
+                    ->get(['email', 'avatar'])
+                    ->each(function ($c) use (&$avatarMap) {
+                        $avatarMap[$c->email] = $c->avatarUrl();
+                    });
+            }
+        }
 
         return view(mailView('inbox.index'), [
             'folders'       => $folders,
@@ -118,6 +138,7 @@ class InboxController extends Controller
             'total'         => $total,
             'page'          => $page,
             'totalPages'    => $totalPages,
+            'avatarMap'     => $avatarMap,
         ]);
     }
 
