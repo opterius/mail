@@ -337,7 +337,7 @@
         @if($message['body_html'] !== '')
             @php
                 $html = $message['body_html'];
-                $defaultStyle = '<style>body{font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.6;color:#1f2937;margin:0;padding:16px 24px;}a{color:#f97316;}</style>';
+                $defaultStyle = '<style>body{font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.7;color:#1f2937;margin:0;padding:20px 28px;}a{color:#f97316;}</style>';
                 if (stripos($html, '<head>') !== false) {
                     $html = str_ireplace('<head>', '<head><base target="_blank">' . $defaultStyle, $html);
                 } elseif (stripos($html, '<html') !== false) {
@@ -355,8 +355,8 @@
                 onload="this.style.height = Math.max(400, this.contentDocument.documentElement.scrollHeight) + 'px'">
             </iframe>
         @elseif($message['body_text'] !== '')
-            <div class="px-6 py-6">
-                <pre class="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200 font-sans leading-relaxed">{{ $message['body_text'] }}</pre>
+            <div class="px-7 py-5">
+                <pre class="whitespace-pre-wrap text-base text-gray-800 dark:text-gray-200 font-sans leading-relaxed">{{ $message['body_text'] }}</pre>
             </div>
         @else
             <div class="flex items-center justify-center h-40 text-sm text-gray-400 dark:text-gray-500">
