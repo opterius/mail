@@ -66,8 +66,9 @@ class InboxController extends Controller
 
             $imap->login($login, $password);
 
-            // Folders for sidebar — fetch STATUS (unseen) for each
+            // Folders for sidebar — ensure standard system folders exist, then fetch STATUS
             $rawFolders = $imap->listFolders();
+            $rawFolders = $this->ensureSystemFolders($imap, $rawFolders);
             $folders    = array_map(
                 fn(array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
                 $rawFolders
@@ -118,6 +119,64 @@ class InboxController extends Controller
             'page'          => $page,
             'totalPages'    => $totalPages,
         ]);
+    }
+
+    /**
+     * Create any missing standard system folders and return the updated list.
+     * Checks for \Sent, \Drafts, \Trash, \Junk by IMAP attribute; falls back to
+     * common name patterns. Only creates a folder when truly absent.
+     */
+    private function ensureSystemFolders(ImapConnection $imap, array $folders): array
+    {
+        // Map special-use attribute → canonical folder name to create if missing
+        $required = [
+            '\\sent'   => 'Sent',
+            '\\drafts' => 'Drafts',
+            '\\trash'  => 'Trash',
+            '\\junk'   => 'Junk',
+        ];
+
+        // Collect which attributes and name-patterns are already present
+        $foundAttrs = [];
+        $upperNames = [];
+        foreach ($folders as $f) {
+            foreach ($f['attributes'] as $attr) {
+                $foundAttrs[$attr] = true;
+            }
+            $upperNames[] = strtoupper($f['name']);
+        }
+
+        // Name-pattern fallbacks so we don't double-create
+        $nameFallbacks = [
+            '\\sent'   => ['SENT', 'SENT MESSAGES', 'SENT ITEMS'],
+            '\\drafts' => ['DRAFTS', 'DRAFT'],
+            '\\trash'  => ['TRASH', 'DELETED', 'DELETED MESSAGES', 'DELETED ITEMS'],
+            '\\junk'   => ['JUNK', 'SPAM'],
+        ];
+
+        $created = false;
+        foreach ($required as $attr => $name) {
+            if (isset($foundAttrs[$attr])) {
+                continue; // already present by IMAP attribute
+            }
+            $patterns = $nameFallbacks[$attr] ?? [];
+            $exists   = false;
+            foreach ($upperNames as $u) {
+                foreach ($patterns as $p) {
+                    if ($u === $p || str_contains($u, $p)) {
+                        $exists = true;
+                        break 2;
+                    }
+                }
+            }
+            if (!$exists) {
+                $imap->createFolder($name);
+                $created = true;
+            }
+        }
+
+        // Re-fetch list only if we created something
+        return $created ? $imap->listFolders() : $folders;
     }
 
     /** Add a human-readable date_formatted field to each message. */
