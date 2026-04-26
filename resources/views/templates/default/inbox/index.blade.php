@@ -33,7 +33,12 @@
         <div class="flex items-center gap-3">
             <h1 class="text-base font-bold text-gray-900 dark:text-white">{{ $folderLabel }}</h1>
             @if(($total ?? 0) > 0)
-                <span class="text-sm text-gray-400 dark:text-gray-500">{{ number_format($total) }}</span>
+                <span class="text-sm text-gray-400 dark:text-gray-500">
+                    {{ number_format($total) }}
+                    @if(($totalPages ?? 1) > 1)
+                        &middot; page {{ $page }} of {{ $totalPages }}
+                    @endif
+                </span>
             @endif
         </div>
         <div class="flex items-center gap-2">
@@ -156,11 +161,71 @@
             @endforeach
         </ul>
 
-        @if(($total ?? 0) > count($messages))
-            <div class="px-5 py-4 text-center border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Showing {{ count($messages) }} of {{ number_format($total) }} messages
-                </p>
+        @if(($totalPages ?? 1) > 1)
+            @php
+                $page       = $page ?? 1;
+                $totalPages = $totalPages ?? 1;
+                $folder     = $currentFolder;
+                $baseUrl    = $folder === 'INBOX'
+                    ? route('inbox')
+                    : route('folder', ['folder' => rawurlencode($folder)]);
+                $pageUrl    = fn(int $p) => $baseUrl . '?page=' . $p;
+
+                // Show up to 7 page links, always include first/last, ellipsis in between
+                $window = 2;
+                $pages  = [];
+                for ($i = 1; $i <= $totalPages; $i++) {
+                    if ($i === 1 || $i === $totalPages || abs($i - $page) <= $window) {
+                        $pages[] = $i;
+                    }
+                }
+            @endphp
+            <div class="flex items-center justify-between px-5 py-3.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+
+                {{-- Prev --}}
+                @if($page > 1)
+                    <a href="{{ $pageUrl($page - 1) }}"
+                       class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                        Newer
+                    </a>
+                @else
+                    <div></div>
+                @endif
+
+                {{-- Page numbers --}}
+                <div class="flex items-center gap-1">
+                    @php $prev = null; @endphp
+                    @foreach($pages as $p)
+                        @if($prev !== null && $p - $prev > 1)
+                            <span class="px-1.5 text-gray-400 text-sm select-none">…</span>
+                        @endif
+                        <a href="{{ $pageUrl($p) }}"
+                           class="min-w-[32px] h-8 flex items-center justify-center text-sm rounded-lg transition-colors
+                                  {{ $p === $page
+                                      ? 'bg-orange-500 text-white font-semibold'
+                                      : 'text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 border border-transparent hover:border-gray-200 dark:hover:border-gray-700' }}">
+                            {{ $p }}
+                        </a>
+                        @php $prev = $p; @endphp
+                    @endforeach
+                </div>
+
+                {{-- Next --}}
+                @if($page < $totalPages)
+                    <a href="{{ $pageUrl($page + 1) }}"
+                       class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors">
+                        Older
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                @else
+                    <div></div>
+                @endif
+
             </div>
         @endif
     @endif

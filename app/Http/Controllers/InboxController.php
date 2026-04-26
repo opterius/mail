@@ -51,6 +51,8 @@ class InboxController extends Controller
         $password = $guard->getImapPassword();
         $login    = $guard->getImapLogin();
 
+        $page = max(1, (int) $request->query('page', 1));
+
         $imap = new ImapConnection();
 
         try {
@@ -72,13 +74,20 @@ class InboxController extends Controller
             );
 
             // Select the requested folder and fetch headers
-            $stats    = $imap->selectFolder($folder);
-            $total    = $stats['exists'];
-            $messages = [];
+            $stats      = $imap->selectFolder($folder);
+            $total      = $stats['exists'];
+            $totalPages = $total > 0 ? (int) ceil($total / self::PER_PAGE) : 1;
+            $page       = min($page, $totalPages);
+            $messages   = [];
 
             if ($total > 0) {
-                $from     = max(1, $total - self::PER_PAGE + 1);
-                $messages = $imap->fetchMessageHeaders("{$from}:{$total}");
+                // Sequence numbers are 1-based oldest→newest.
+                // Page 1 = most recent PER_PAGE messages.
+                $to   = $total - ($page - 1) * self::PER_PAGE;
+                $from = max(1, $to - self::PER_PAGE + 1);
+
+                $messages = $imap->fetchMessageHeaders("{$from}:{$to}");
+                $messages = array_reverse($messages); // newest first
                 $messages = $this->formatDates($messages);
             }
 
@@ -92,6 +101,8 @@ class InboxController extends Controller
                 'currentFolder' => $folder,
                 'messages'      => [],
                 'total'         => 0,
+                'page'          => 1,
+                'totalPages'    => 1,
             ]);
         }
 
@@ -100,6 +111,8 @@ class InboxController extends Controller
             'currentFolder' => $folder,
             'messages'      => $messages,
             'total'         => $total,
+            'page'          => $page,
+            'totalPages'    => $totalPages,
         ]);
     }
 
