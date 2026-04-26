@@ -36,7 +36,7 @@ class Contact extends Model
 
     public function groups(): BelongsToMany
     {
-        return $this->belongsToMany(ContactGroup::class);
+        return $this->belongsToMany(ContactGroup::class, 'contact_group_contact');
     }
 
     public function avatarUrl(): ?string

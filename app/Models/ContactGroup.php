@@ -43,7 +43,7 @@ class ContactGroup extends Model
 
     public function contacts(): BelongsToMany
     {
-        return $this->belongsToMany(Contact::class);
+        return $this->belongsToMany(Contact::class, 'contact_group_contact');
     }
 
     public function badgeClass(): string
