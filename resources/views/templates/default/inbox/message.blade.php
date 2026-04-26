@@ -231,20 +231,20 @@
             <div class="flex-1 min-w-0">
                 <div class="flex items-baseline justify-between gap-4">
                     <div class="min-w-0">
-                        <span class="font-medium text-sm text-gray-900 dark:text-gray-100">{{ $fromName }}</span>
+                        <span class="font-medium text-base text-gray-900 dark:text-gray-100">{{ $fromName }}</span>
                         @if($fromName !== $fromEmail && $fromEmail !== '')
                             <span class="text-sm text-gray-400 dark:text-gray-500 ml-1">&lt;{{ $fromEmail }}&gt;</span>
                         @endif
                     </div>
-                    <span class="flex-shrink-0 text-xs text-gray-400 dark:text-gray-500">{{ $message['date_formatted'] }}</span>
+                    <span class="flex-shrink-0 text-sm text-gray-400 dark:text-gray-500">{{ $message['date_formatted'] }}</span>
                 </div>
 
-                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     <span class="text-gray-400 dark:text-gray-500">To:</span>
                     {{ implode(', ', array_map(fn($a) => $a['name'] ?: $a['email'], $message['to'])) ?: '—' }}
                 </div>
                 @if(!empty($message['cc']))
-                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                    <div class="text-sm text-gray-500 dark:text-gray-400">
                         <span class="text-gray-400 dark:text-gray-500">Cc:</span>
                         {{ implode(', ', array_map(fn($a) => $a['name'] ?: $a['email'], $message['cc'])) }}
                     </div>

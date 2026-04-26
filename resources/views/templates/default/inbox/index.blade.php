@@ -289,18 +289,18 @@
                                     @if($isUnread)
                                         <div class="flex-shrink-0 w-2 h-2 rounded-full bg-orange-500"></div>
                                     @endif
-                                    <span class="text-sm truncate {{ $isUnread ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300' }}">
+                                    <span class="text-base truncate {{ $isUnread ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300' }}">
                                         {{ $msg['subject'] ?: '(no subject)' }}
                                     </span>
                                     <span class="flex-shrink-0 px-1.5 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full">
                                         {{ $threadCount }}
                                     </span>
                                 </div>
-                                <span class="flex-shrink-0 text-xs {{ $isUnread ? 'text-gray-600 dark:text-gray-400 font-medium' : 'text-gray-400 dark:text-gray-500' }}">
+                                <span class="flex-shrink-0 text-sm {{ $isUnread ? 'text-gray-600 dark:text-gray-400 font-medium' : 'text-gray-400 dark:text-gray-500' }}">
                                     {{ $msg['date_formatted'] ?? '' }}
                                 </span>
                             </div>
-                            <p class="text-xs text-gray-400 dark:text-gray-500 truncate">
+                            <p class="text-sm text-gray-400 dark:text-gray-500 truncate">
                                 {{ implode(', ', array_unique(array_map(fn($m) => $m['from']['name'] ?: $m['from']['email'], $thread['messages']))) }}
                             </p>
                         </div>
@@ -348,10 +348,10 @@
 
                                 <a href="{{ $th }}" class="flex-1 min-w-0">
                                     <div class="flex items-center justify-between gap-2">
-                                        <span class="text-sm truncate {{ !$tm['seen'] ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300' }}">
+                                        <span class="text-base truncate {{ !$tm['seen'] ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300' }}">
                                             {{ $tn }}
                                         </span>
-                                        <span class="text-xs text-gray-400">{{ $tm['date_formatted'] ?? '' }}</span>
+                                        <span class="text-sm text-gray-400">{{ $tm['date_formatted'] ?? '' }}</span>
                                     </div>
                                 </a>
 
@@ -420,10 +420,10 @@
 
                         <a href="{{ $href }}" class="flex-1 min-w-0">
                             <div class="flex items-center justify-between gap-3 mb-0.5">
-                                <span class="text-sm truncate {{ $isUnread ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300' }}">
+                                <span class="text-base truncate {{ $isUnread ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300' }}">
                                     {{ $fromName }}
                                 </span>
-                                <span class="flex-shrink-0 text-xs {{ $isUnread ? 'text-gray-600 dark:text-gray-400 font-medium' : 'text-gray-400 dark:text-gray-500' }}">
+                                <span class="flex-shrink-0 text-sm {{ $isUnread ? 'text-gray-600 dark:text-gray-400 font-medium' : 'text-gray-400 dark:text-gray-500' }}">
                                     {{ $msg['date_formatted'] ?? '' }}
                                 </span>
                             </div>
@@ -433,7 +433,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                                     </svg>
                                 @endif
-                                <p class="text-sm truncate {{ $isUnread ? 'font-semibold text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400' }}">
+                                <p class="text-base truncate {{ $isUnread ? 'font-semibold text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400' }}">
                                     {{ $msg['subject'] ?: '(no subject)' }}
                                 </p>
                             </div>

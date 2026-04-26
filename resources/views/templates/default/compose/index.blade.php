@@ -264,8 +264,8 @@
 
             {{-- From --}}
             <div class="flex items-center gap-3 py-2.5">
-                <span class="w-14 text-xs font-medium text-gray-400 flex-shrink-0 text-right">From</span>
-                <span class="text-sm text-gray-700">
+                <span class="w-14 text-sm font-medium text-gray-400 flex-shrink-0 text-right">From</span>
+                <span class="text-base text-gray-700">
                     {{ $fromName ? $fromName . ' <' . $fromEmail . '>' : $fromEmail }}
                 </span>
             </div>
@@ -273,7 +273,7 @@
             {{-- To --}}
             <div class="relative py-2.5">
                 <div class="flex items-center gap-3">
-                    <label for="to" class="w-14 text-xs font-medium text-gray-400 flex-shrink-0 text-right">To</label>
+                    <label for="to" class="w-14 text-sm font-medium text-gray-400 flex-shrink-0 text-right">To</label>
                     <input id="to"
                            name="to"
                            type="text"
@@ -283,7 +283,7 @@
                            @input="suggest('to', $event.target.value)"
                            @blur="checkContact($event.target.value)"
                            @keydown.escape="toSug = []"
-                           class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300
+                           class="flex-1 text-base text-gray-800 outline-none placeholder-gray-300
                                   @error('to') border-b border-red-400 @enderror">
                     <div class="flex items-center gap-1 flex-shrink-0">
                         <button type="button"
@@ -358,7 +358,7 @@
             {{-- CC --}}
             <div class="relative py-2.5" x-show="showCc" x-cloak>
                 <div class="flex items-center gap-3">
-                    <label for="cc" class="w-14 text-xs font-medium text-gray-400 flex-shrink-0 text-right">Cc</label>
+                    <label for="cc" class="w-14 text-sm font-medium text-gray-400 flex-shrink-0 text-right">Cc</label>
                     <input id="cc"
                            name="cc"
                            type="text"
@@ -367,7 +367,7 @@
                            autocomplete="new-password"
                            @input="suggest('cc', $event.target.value)"
                            @keydown.escape="ccSug = []"
-                           class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300">
+                           class="flex-1 text-base text-gray-800 outline-none placeholder-gray-300">
                 </div>
                 <div x-show="ccSug.length > 0" x-cloak @click.outside="ccSug = []"
                      class="absolute left-[4.25rem] right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden">
@@ -389,7 +389,7 @@
             {{-- BCC --}}
             <div class="relative py-2.5" x-show="showBcc" x-cloak>
                 <div class="flex items-center gap-3">
-                    <label for="bcc" class="w-14 text-xs font-medium text-gray-400 flex-shrink-0 text-right">Bcc</label>
+                    <label for="bcc" class="w-14 text-sm font-medium text-gray-400 flex-shrink-0 text-right">Bcc</label>
                     <input id="bcc"
                            name="bcc"
                            type="text"
@@ -398,7 +398,7 @@
                            autocomplete="new-password"
                            @input="suggest('bcc', $event.target.value)"
                            @keydown.escape="bccSug = []"
-                           class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300">
+                           class="flex-1 text-base text-gray-800 outline-none placeholder-gray-300">
                 </div>
                 <div x-show="bccSug.length > 0" x-cloak @click.outside="bccSug = []"
                      class="absolute left-[4.25rem] right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden">
@@ -419,13 +419,13 @@
 
             {{-- Subject --}}
             <div class="flex items-center gap-3 py-2.5">
-                <label for="subject" class="w-14 text-xs font-medium text-gray-400 flex-shrink-0 text-right">Subject</label>
+                <label for="subject" class="w-14 text-sm font-medium text-gray-400 flex-shrink-0 text-right">Subject</label>
                 <input id="subject"
                        name="subject"
                        type="text"
                        value="{{ old('subject', $subject) }}"
                        placeholder="(no subject)"
-                       class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300">
+                       class="flex-1 text-base text-gray-800 outline-none placeholder-gray-300">
             </div>
 
         </div>
