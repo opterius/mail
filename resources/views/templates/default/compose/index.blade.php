@@ -279,7 +279,7 @@
                            type="text"
                            value="{{ old('to', $to) }}"
                            placeholder="recipient@example.com"
-                           autocomplete="off"
+                           autocomplete="new-password"
                            @input="suggest('to', $event.target.value)"
                            @blur="checkContact($event.target.value)"
                            @keydown.escape="toSug = []"
@@ -364,7 +364,7 @@
                            type="text"
                            value="{{ old('cc', $cc) }}"
                            placeholder="cc@example.com"
-                           autocomplete="off"
+                           autocomplete="new-password"
                            @input="suggest('cc', $event.target.value)"
                            @keydown.escape="ccSug = []"
                            class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300">
@@ -395,7 +395,7 @@
                            type="text"
                            value="{{ old('bcc') }}"
                            placeholder="bcc@example.com"
-                           autocomplete="off"
+                           autocomplete="new-password"
                            @input="suggest('bcc', $event.target.value)"
                            @keydown.escape="bccSug = []"
                            class="flex-1 text-sm text-gray-800 outline-none placeholder-gray-300">
