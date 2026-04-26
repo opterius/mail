@@ -23,6 +23,27 @@
     $fromName  = $message['from']['name'] ?: $message['from']['email'];
     $fromEmail = $message['from']['email'];
     $initial   = mb_strtoupper(mb_substr($fromName, 0, 1, 'UTF-8'), 'UTF-8');
+
+    $folderLabel = static function (array $f): string {
+        $attrs = $f['attributes'] ?? [];
+        $upper = strtoupper($f['name']);
+        if ($upper === 'INBOX')                         return 'Inbox';
+        if (in_array('\\sent',   $attrs, true))         return 'Sent';
+        if (in_array('\\drafts', $attrs, true))         return 'Drafts';
+        if (in_array('\\trash',  $attrs, true))         return 'Trash';
+        if (in_array('\\junk',   $attrs, true))         return 'Spam';
+        if (str_contains($upper, 'SENT'))               return 'Sent';
+        if (str_contains($upper, 'DRAFT'))              return 'Drafts';
+        if (str_contains($upper, 'TRASH') || str_contains($upper, 'DELETED')) return 'Trash';
+        if (str_contains($upper, 'JUNK')  || str_contains($upper, 'SPAM'))    return 'Spam';
+        return $f['name'];
+    };
+
+    $moveFolders = array_values(array_filter(
+        $folders,
+        fn($f) => $f['name'] !== $message['folder']
+    ));
+    $moveUrl = route('message.move', ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']]);
 @endphp
 
 <div class="flex flex-col h-full">
@@ -59,6 +80,46 @@
                 </svg>
                 Forward
             </a>
+
+            {{-- Move to folder --}}
+            @if(count($moveFolders) > 0)
+            <div x-data="{ open: false }" class="relative">
+                <button @click="open = !open" @keydown.escape.window="open = false"
+                        type="button"
+                        class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        title="Move to folder">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                    </svg>
+                    Move to
+                    <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+
+                <div x-show="open" @click.outside="open = false"
+                     x-transition:enter="transition ease-out duration-100"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-75"
+                     x-transition:leave-start="opacity-100 scale-100"
+                     x-transition:leave-end="opacity-0 scale-95"
+                     class="absolute right-0 mt-1 w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1 max-h-72 overflow-y-auto"
+                     style="display:none; top: 100%;">
+                    @foreach($moveFolders as $f)
+                    <form method="POST" action="{{ $moveUrl }}">
+                        @csrf
+                        <input type="hidden" name="target" value="{{ $f['name'] }}">
+                        <button type="submit"
+                                class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors truncate">
+                            {{ $folderLabel($f) }}
+                        </button>
+                    </form>
+                    @endforeach
+                </div>
+            </div>
+            @endif
 
             {{-- Delete --}}
             <form id="delete-form" method="POST"
