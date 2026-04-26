@@ -23,12 +23,63 @@
 
 namespace App\Http\Controllers;
 
+use App\Auth\ImapGuard;
+use App\Services\ImapConnection;
+use App\Services\MimeParser;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttachmentController extends Controller
 {
-    public function download(string $folder, string $uid, string $part)
+    public function download(Request $request, string $folder, string $uid, string $part): mixed
     {
-        abort(501, 'Attachment download not yet implemented.');
+        $partIndex = (int) $part;
+        if ($partIndex < 0) {
+            abort(400);
+        }
+
+        /** @var ImapGuard $guard */
+        $guard = auth('web');
+        $imap  = new ImapConnection();
+
+        try {
+            $imap->connect(
+                host:         config('imap.host'),
+                port:         config('imap.port'),
+                encryption:   config('imap.encryption'),
+                validateCert: config('imap.validate_cert', false),
+                timeout:      config('imap.timeout', 10),
+            );
+            $imap->login($guard->getImapLogin(), $guard->getImapPassword());
+            $imap->selectFolder($folder);
+            $fetched = $imap->fetchMessageRaw((int) $uid);
+            $imap->logout();
+        } catch (\Throwable) {
+            $imap->close();
+            abort(503, 'Could not connect to mail server.');
+        }
+
+        if ($fetched['raw'] === '') {
+            abort(404);
+        }
+
+        $attachment = (new MimeParser())->extractPart($fetched['raw'], $partIndex);
+
+        if ($attachment === null) {
+            abort(404, 'Attachment not found.');
+        }
+
+        $filename = $attachment['name'] !== '' ? $attachment['name'] : 'attachment';
+        $mimeType = $attachment['type'] !== '' ? $attachment['type'] : 'application/octet-stream';
+        $data     = $attachment['data'];
+
+        return response()->streamDownload(
+            function () use ($data) { echo $data; },
+            $filename,
+            [
+                'Content-Type'   => $mimeType,
+                'Content-Length' => strlen($data),
+            ],
+        );
     }
 }

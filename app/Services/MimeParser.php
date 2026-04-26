@@ -42,6 +42,7 @@ class MimeParser
      *   body_html: string,
      *   body_text: string,
      *   has_attachments: bool,
+     *   attachments: array<array{index: int, name: string, type: string, size: int}>,
      * }
      */
     public function parse(string $raw): array
@@ -58,21 +59,43 @@ class MimeParser
             'body_html'       => '',
             'body_text'       => '',
             'has_attachments' => false,
+            'attachments'     => [],
         ];
 
         $contentType = $headers['content-type'] ?? 'text/plain';
         $encoding    = strtolower(trim($headers['content-transfer-encoding'] ?? '7bit'));
+        $partCounter = 0;
 
-        $this->extractBody($contentType, $encoding, $body, $result);
+        $this->extractBody($contentType, $encoding, $body, $result, $partCounter);
 
         return $result;
+    }
+
+    /**
+     * Extract and decode a single attachment part by its sequential index.
+     * Returns null when the index does not correspond to an attachment part.
+     *
+     * @return array{name: string, type: string, data: string}|null
+     */
+    public function extractPart(string $raw, int $index): ?array
+    {
+        [$headerBlock, $body] = $this->splitHeadersBody($raw);
+        $headers     = $this->parseHeaderBlock($headerBlock);
+        $contentType = $headers['content-type'] ?? 'text/plain';
+        $encoding    = strtolower(trim($headers['content-transfer-encoding'] ?? '7bit'));
+
+        $parts   = [];
+        $counter = 0;
+        $this->collectAttachmentParts($contentType, $encoding, $body, $parts, $counter);
+
+        return $parts[$index] ?? null;
     }
 
     // ------------------------------------------------------------------
     // Body extraction
     // ------------------------------------------------------------------
 
-    private function extractBody(string $contentType, string $encoding, string $body, array &$result): void
+    private function extractBody(string $contentType, string $encoding, string $body, array &$result, int &$partCounter): void
     {
         $ct = strtolower($contentType);
 
@@ -82,20 +105,26 @@ class MimeParser
                 return;
             }
             foreach ($this->splitMultipart($body, $boundary) as $part) {
-                [$ph, $pb]    = $this->splitHeadersBody(ltrim($part, "\r\n"));
-                $headers      = $this->parseHeaderBlock($ph);
-                $pct          = $headers['content-type'] ?? 'text/plain';
-                $penc         = strtolower(trim($headers['content-transfer-encoding'] ?? '7bit'));
-                $disposition  = strtolower($headers['content-disposition'] ?? '');
+                [$ph, $pb]   = $this->splitHeadersBody(ltrim($part, "\r\n"));
+                $headers     = $this->parseHeaderBlock($ph);
+                $pct         = $headers['content-type'] ?? 'text/plain';
+                $penc        = strtolower(trim($headers['content-transfer-encoding'] ?? '7bit'));
+                $disposition = $headers['content-disposition'] ?? '';
 
-                if (str_starts_with($disposition, 'attachment')) {
+                if (str_starts_with(strtolower($disposition), 'attachment')) {
                     $result['has_attachments'] = true;
+                    $result['attachments'][]   = [
+                        'index' => $partCounter++,
+                        'name'  => $this->getFilename($pct, $disposition),
+                        'type'  => $this->mimeBase($pct),
+                        'size'  => $this->approxSize($pb, $penc),
+                    ];
                     continue;
                 }
 
                 // Recurse into nested multipart
                 if (str_starts_with(strtolower($pct), 'multipart/')) {
-                    $this->extractBody($pct, $penc, $pb, $result);
+                    $this->extractBody($pct, $penc, $pb, $result, $partCounter);
                     continue;
                 }
 
@@ -116,6 +145,44 @@ class MimeParser
             $result['body_html'] = $decoded;
         } else {
             $result['body_text'] = $decoded;
+        }
+    }
+
+    /**
+     * Walk the MIME tree and collect all attachment parts with decoded bodies.
+     * Used exclusively by extractPart() for streaming downloads.
+     *
+     * @param array<int, array{name: string, type: string, data: string}> $parts
+     */
+    private function collectAttachmentParts(string $contentType, string $encoding, string $body, array &$parts, int &$counter): void
+    {
+        $ct = strtolower($contentType);
+
+        if (!str_starts_with($ct, 'multipart/')) {
+            return;
+        }
+
+        $boundary = $this->getBoundary($contentType);
+        if ($boundary === '') {
+            return;
+        }
+
+        foreach ($this->splitMultipart($body, $boundary) as $part) {
+            [$ph, $pb]   = $this->splitHeadersBody(ltrim($part, "\r\n"));
+            $headers     = $this->parseHeaderBlock($ph);
+            $pct         = $headers['content-type'] ?? 'application/octet-stream';
+            $penc        = strtolower(trim($headers['content-transfer-encoding'] ?? '7bit'));
+            $disposition = $headers['content-disposition'] ?? '';
+
+            if (str_starts_with(strtolower($disposition), 'attachment')) {
+                $parts[$counter++] = [
+                    'name' => $this->getFilename($pct, $disposition),
+                    'type' => $this->mimeBase($pct),
+                    'data' => $this->decodeBody($pb, $penc, $pct),
+                ];
+            } elseif (str_starts_with(strtolower($pct), 'multipart/')) {
+                $this->collectAttachmentParts($pct, $penc, $pb, $parts, $counter);
+            }
         }
     }
 
@@ -290,6 +357,47 @@ class MimeParser
             },
             $value,
         ) ?? $value;
+    }
+
+    // ------------------------------------------------------------------
+    // Attachment helpers
+    // ------------------------------------------------------------------
+
+    private function getFilename(string $contentType, string $disposition): string
+    {
+        // Content-Disposition: attachment; filename="foo.pdf"  or  filename*=UTF-8''foo.pdf
+        if (preg_match('/filename\*\s*=\s*[^\']*\'[^\']*\'([^\s;]+)/i', $disposition, $m)) {
+            return rawurldecode($m[1]);
+        }
+        if (preg_match('/filename\s*=\s*"([^"]+)"/i', $disposition, $m)) {
+            return $this->decodeHeader($m[1]);
+        }
+        if (preg_match('/filename\s*=\s*([^\s;]+)/i', $disposition, $m)) {
+            return $this->decodeHeader($m[1]);
+        }
+        // Fall back to name= in Content-Type
+        if (preg_match('/name\s*=\s*"([^"]+)"/i', $contentType, $m)) {
+            return $this->decodeHeader($m[1]);
+        }
+        if (preg_match('/name\s*=\s*([^\s;]+)/i', $contentType, $m)) {
+            return $this->decodeHeader($m[1]);
+        }
+        return 'attachment';
+    }
+
+    private function approxSize(string $encodedBody, string $encoding): int
+    {
+        return match ($encoding) {
+            'base64'           => (int) (strlen(preg_replace('/\s+/', '', $encodedBody) ?? '') * 3 / 4),
+            'quoted-printable' => strlen(quoted_printable_decode($encodedBody)),
+            default            => strlen($encodedBody),
+        };
+    }
+
+    private function mimeBase(string $contentType): string
+    {
+        $semi = strpos($contentType, ';');
+        return $semi !== false ? trim(substr($contentType, 0, $semi)) : trim($contentType);
     }
 
     // ------------------------------------------------------------------

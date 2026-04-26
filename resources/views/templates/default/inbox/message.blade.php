@@ -173,13 +173,36 @@
                     </div>
                 @endif
 
-                @if($message['has_attachments'])
-                    <div class="flex items-center gap-1 mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-                        </svg>
-                        Has attachments
+                @if(!empty($message['attachments']))
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        @foreach($message['attachments'] as $att)
+                            @php
+                                $dlUrl = route('attachment.download', [
+                                    'folder' => rawurlencode($message['folder']),
+                                    'uid'    => $message['uid'],
+                                    'part'   => $att['index'],
+                                ]);
+                                $sz = $att['size'];
+                                $sizeStr = $sz < 1024
+                                    ? $sz . ' B'
+                                    : ($sz < 1048576
+                                        ? round($sz / 1024, 1) . ' KB'
+                                        : round($sz / 1048576, 1) . ' MB');
+                            @endphp
+                            <a href="{{ $dlUrl }}"
+                               class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm transition-colors max-w-xs">
+                                <svg class="w-3.5 h-3.5 text-gray-500 dark:text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                                </svg>
+                                <span class="truncate text-gray-700 dark:text-gray-300">{{ $att['name'] }}</span>
+                                <span class="flex-shrink-0 text-xs text-gray-400 dark:text-gray-500">{{ $sizeStr }}</span>
+                                <svg class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                </svg>
+                            </a>
+                        @endforeach
                     </div>
                 @endif
             </div>

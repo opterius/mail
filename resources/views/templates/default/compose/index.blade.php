@@ -71,7 +71,30 @@
     @endif
 
     {{-- Compose form --}}
-    <form method="POST" action="{{ route('compose.send') }}" class="flex flex-col flex-1 min-h-0">
+    <form method="POST" action="{{ route('compose.send') }}" enctype="multipart/form-data"
+          class="flex flex-col flex-1 min-h-0"
+          x-data="{
+              attachFiles: [],
+              attachDt: new DataTransfer(),
+              addFiles(e) {
+                  for (const f of e.target.files) {
+                      this.attachDt.items.add(f);
+                      this.attachFiles.push({ name: f.name, size: f.size });
+                  }
+                  document.getElementById('attach-input').files = this.attachDt.files;
+                  e.target.value = '';
+              },
+              removeFile(i) {
+                  this.attachDt.items.remove(i);
+                  this.attachFiles.splice(i, 1);
+                  document.getElementById('attach-input').files = this.attachDt.files;
+              },
+              fmtSize(b) {
+                  if (b < 1024) return b + ' B';
+                  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+                  return (b / 1048576).toFixed(1) + ' MB';
+              }
+          }">
         @csrf
 
         {{-- Header fields --}}
@@ -214,6 +237,46 @@
                       class="flex-1 w-full text-sm text-gray-800 leading-relaxed outline-none resize-none
                              font-mono placeholder-gray-300 min-h-[320px]"
                       placeholder="Write your message here…">{{ old('body', $body) }}</textarea>
+        </div>
+
+        {{-- Attachments --}}
+        <div class="px-6 pb-3 border-t border-gray-100">
+            {{-- Hidden real file input that the form submits --}}
+            <input type="file" id="attach-input" name="attachments[]" multiple class="hidden">
+
+            {{-- Attach button --}}
+            <div class="flex items-center gap-3 pt-3">
+                <label for="attach-trigger"
+                       class="flex items-center gap-1.5 cursor-pointer text-sm text-gray-500 hover:text-gray-700 transition-colors select-none">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                    </svg>
+                    Attach files
+                    <input type="file" id="attach-trigger" multiple class="hidden" @change="addFiles($event)">
+                </label>
+                <span class="text-xs text-gray-400">Max 25 MB per file</span>
+            </div>
+
+            {{-- Selected file chips --}}
+            <div x-show="attachFiles.length > 0" x-cloak class="flex flex-wrap gap-2 mt-2">
+                <template x-for="(f, i) in attachFiles" :key="i">
+                    <div class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-lg text-sm">
+                        <svg class="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                        </svg>
+                        <span class="text-gray-700 truncate max-w-[140px]" x-text="f.name"></span>
+                        <span class="text-xs text-gray-400 flex-shrink-0" x-text="fmtSize(f.size)"></span>
+                        <button type="button" @click="removeFile(i)"
+                                class="ml-0.5 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </template>
+            </div>
         </div>
 
         {{-- Footer / actions --}}

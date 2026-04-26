@@ -23,6 +23,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\UploadedFile;
 use Symfony\Component\Mailer\Mailer as SymfonyMailer;
 use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 use Symfony\Component\Mime\Address;
@@ -44,6 +45,9 @@ class SmtpSender
      *
      * @throws \Throwable on SMTP or addressing errors
      */
+    /**
+     * @param UploadedFile[] $attachments
+     */
     public function send(
         string $fromEmail,
         string $fromName,
@@ -55,6 +59,7 @@ class SmtpSender
         string $cc = '',
         string $bcc = '',
         string $authUsername = '',
+        array  $attachments = [],
     ): string {
         $transport = $this->buildTransport(
             $authUsername !== '' ? $authUsername : $fromEmail,
@@ -80,6 +85,16 @@ class SmtpSender
             $email->text($bodyText !== '' ? $bodyText : strip_tags($bodyHtml));
         } else {
             $email->text($bodyText);
+        }
+
+        foreach ($attachments as $file) {
+            if ($file instanceof UploadedFile && $file->isValid()) {
+                $email->attach(
+                    (string) file_get_contents($file->getRealPath()),
+                    $file->getClientOriginalName(),
+                    $file->getMimeType() ?? 'application/octet-stream',
+                );
+            }
         }
 
         (new SymfonyMailer($transport))->send($email);

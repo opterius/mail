@@ -110,12 +110,20 @@ class ComposeController extends Controller
     public function send(Request $request): mixed
     {
         $data = $request->validate([
-            'to'      => ['required', 'string', 'max:2000'],
-            'cc'      => ['nullable', 'string', 'max:2000'],
-            'bcc'     => ['nullable', 'string', 'max:2000'],
-            'subject' => ['nullable', 'string', 'max:998'],
-            'body'    => ['nullable', 'string'],
+            'to'            => ['required', 'string', 'max:2000'],
+            'cc'            => ['nullable', 'string', 'max:2000'],
+            'bcc'           => ['nullable', 'string', 'max:2000'],
+            'subject'       => ['nullable', 'string', 'max:998'],
+            'body'          => ['nullable', 'string'],
+            'attachments'   => ['nullable', 'array'],
+            'attachments.*' => ['file', 'max:' . (25 * 1024)],
         ]);
+
+        $attachments = $request->file('attachments', []);
+        $totalBytes  = array_sum(array_map(fn($f) => $f->getSize(), $attachments));
+        if ($totalBytes > 25 * 1024 * 1024) {
+            return back()->withInput()->withErrors(['send' => 'Total attachment size exceeds 25 MB.']);
+        }
 
         /** @var ImapGuard $guard */
         $guard    = auth('web');
@@ -148,6 +156,7 @@ class ComposeController extends Controller
                 cc:           $data['cc'] ?? '',
                 bcc:          $data['bcc'] ?? '',
                 authUsername: $guard->getImapLogin(),
+                attachments:  $attachments,
             );
 
             MailSendLog::record(
