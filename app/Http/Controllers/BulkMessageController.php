@@ -67,17 +67,26 @@ class BulkMessageController extends Controller
                 timeout:      config('imap.timeout', 10),
             );
             $imap->login($guard->getImapLogin(), $guard->getImapPassword());
-            $imap->selectFolder($folder);
 
-            match ($action) {
-                'delete' => $imap->deleteMessages($uidSet),
-                'read'   => $imap->storeFlags($uidSet, '\\Seen', true),
-                'unread' => $imap->storeFlags($uidSet, '\\Seen', false),
-                'flag'   => $imap->storeFlags($uidSet, '\\Flagged', true),
-                'unflag' => $imap->storeFlags($uidSet, '\\Flagged', false),
-                'move'   => $target ? $imap->moveMessages($uidSet, $target) : null,
-                default  => null,
-            };
+            if ($action === 'delete') {
+                $trash = $this->findTrashFolder($imap, $folder);
+                $imap->selectFolder($folder);
+                if ($trash !== null) {
+                    $imap->moveMessages($uidSet, $trash);
+                } else {
+                    $imap->deleteMessages($uidSet);
+                }
+            } else {
+                $imap->selectFolder($folder);
+                match ($action) {
+                    'read'   => $imap->storeFlags($uidSet, '\\Seen', true),
+                    'unread' => $imap->storeFlags($uidSet, '\\Seen', false),
+                    'flag'   => $imap->storeFlags($uidSet, '\\Flagged', true),
+                    'unflag' => $imap->storeFlags($uidSet, '\\Flagged', false),
+                    'move'   => $target ? $imap->moveMessages($uidSet, $target) : null,
+                    default  => null,
+                };
+            }
 
             $imap->logout();
         } catch (\Throwable) {
@@ -85,6 +94,32 @@ class BulkMessageController extends Controller
         }
 
         return $this->back($folder, $page);
+    }
+
+    private function findTrashFolder(ImapConnection $imap, string $currentFolder): ?string
+    {
+        $folders = $imap->listFolders();
+
+        foreach ($folders as $f) {
+            foreach ($f['attributes'] as $attr) {
+                if (strtolower($attr) === '\\trash') {
+                    $trash = $f['name'];
+                    return strtolower($currentFolder) === strtolower($trash) ? null : $trash;
+                }
+            }
+        }
+
+        $patterns = ['trash', 'deleted', 'deleted messages', 'deleted items'];
+        foreach ($folders as $f) {
+            $name = strtolower($f['name']);
+            foreach ($patterns as $p) {
+                if ($name === $p || str_ends_with($name, '/' . $p)) {
+                    return strtolower($currentFolder) === $name ? null : $f['name'];
+                }
+            }
+        }
+
+        return null;
     }
 
     private function back(string $folder, int $page): mixed

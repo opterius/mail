@@ -137,8 +137,17 @@ class MessageController extends Controller
     public function destroy(Request $request, string $folder, string $uid): mixed
     {
         $this->imapAction(function (ImapConnection $imap) use ($folder, $uid) {
-            $imap->selectFolder($folder);
-            $imap->deleteMessages((string)(int)$uid);
+            $trash = $this->findTrashFolder($imap, $folder);
+
+            if ($trash === null) {
+                // Already in Trash (or no Trash folder) — permanently delete
+                $imap->selectFolder($folder);
+                $imap->deleteMessages((string)(int)$uid);
+            } else {
+                // Move to Trash
+                $imap->selectFolder($folder);
+                $imap->moveMessages((string)(int)$uid, $trash);
+            }
         });
 
         $back = strtoupper($folder) === 'INBOX'
@@ -199,6 +208,39 @@ class MessageController extends Controller
         } catch (\Throwable) {
             $imap->close();
         }
+    }
+
+    /**
+     * Find the Trash folder name. Returns null if $currentFolder IS already Trash,
+     * so the caller knows to permanently delete instead of move.
+     */
+    private function findTrashFolder(ImapConnection $imap, string $currentFolder): ?string
+    {
+        $folders = $imap->listFolders();
+
+        // Look for \Trash special-use attribute first
+        foreach ($folders as $f) {
+            foreach ($f['attributes'] as $attr) {
+                if (strtolower($attr) === '\\trash') {
+                    $trash = $f['name'];
+                    return strtolower($currentFolder) === strtolower($trash) ? null : $trash;
+                }
+            }
+        }
+
+        // Fallback: common name patterns
+        $patterns = ['trash', 'deleted', 'deleted messages', 'deleted items'];
+        foreach ($folders as $f) {
+            $name = strtolower($f['name']);
+            foreach ($patterns as $p) {
+                if ($name === $p || str_ends_with($name, '/' . $p)) {
+                    return strtolower($currentFolder) === $name ? null : $f['name'];
+                }
+            }
+        }
+
+        // No Trash folder found — permanent delete
+        return null;
     }
 
     // ------------------------------------------------------------------
