@@ -24,6 +24,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\LoginLog;
+use App\Models\UserTwoFactor;
+use App\Services\TotpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -56,6 +58,16 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
+        // Check if 2FA is enabled for this account
+        $tf = UserTwoFactor::where('email', $credentials['email'])
+            ->whereNotNull('enabled_at')
+            ->first();
+
+        if ($tf) {
+            session(['2fa_pending' => true]);
+            return redirect()->route('2fa');
+        }
+
         return redirect()->intended(route('inbox'));
     }
 
@@ -75,7 +87,50 @@ class AuthController extends Controller
 
     public function verify2fa(Request $request)
     {
-        // 2FA verification will be implemented when the 2FA feature is built.
-        return redirect()->route('inbox');
+        if (!session('2fa_pending')) {
+            return redirect()->route('inbox');
+        }
+
+        $request->validate(['code' => ['required', 'string']]);
+
+        $email  = session('imap_email');
+        $record = UserTwoFactor::where('email', $email)->whereNotNull('enabled_at')->first();
+
+        if (!$record) {
+            session()->forget('2fa_pending');
+            return redirect()->route('inbox');
+        }
+
+        $secret = decrypt($record->secret);
+        $totp   = new TotpService();
+
+        $valid = $totp->verify($secret, $request->input('code'))
+            || $this->consumeRecoveryCode($record, $request->input('code'));
+
+        if (!$valid) {
+            return back()->withErrors(['code' => 'Invalid code. Check your authenticator app or use a recovery code.']);
+        }
+
+        session()->forget('2fa_pending');
+
+        return redirect()->intended(route('inbox'));
+    }
+
+    // ------------------------------------------------------------------
+
+    private function consumeRecoveryCode(UserTwoFactor $record, string $code): bool
+    {
+        $codes = $record->getRecoveryCodesArray();
+        $clean = strtoupper(str_replace(['-', ' '], '', $code));
+
+        foreach ($codes as $i => $stored) {
+            if (strtoupper(str_replace('-', '', $stored)) === $clean) {
+                unset($codes[$i]);
+                $record->update(['recovery_codes' => json_encode(array_values($codes))]);
+                return true;
+            }
+        }
+
+        return false;
     }
 }

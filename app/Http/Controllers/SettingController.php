@@ -23,17 +23,39 @@
 
 namespace App\Http\Controllers;
 
+use App\Auth\ImapGuard;
 use App\Models\UserSetting;
+use App\Services\ImapConnection;
 use Illuminate\Http\Request;
 
 class SettingController extends Controller
 {
     public function index(): mixed
     {
+        /** @var ImapGuard $guard */
+        $guard = auth('web');
+        $quota = null;
+
+        try {
+            $imap = new ImapConnection();
+            $imap->connect(
+                host:         config('imap.host'),
+                port:         config('imap.port'),
+                encryption:   config('imap.encryption'),
+                validateCert: config('imap.validate_cert', false),
+                timeout:      config('imap.timeout', 5),
+            );
+            $imap->login($guard->getImapLogin(), $guard->getImapPassword());
+            $quota = $imap->getQuota();
+            $imap->logout();
+        } catch (\Throwable) {
+        }
+
         return view(mailView('settings.index'), [
             'settings'      => userSettings(),
             'folders'       => [],
             'currentFolder' => '',
+            'quota'         => $quota,
         ]);
     }
 

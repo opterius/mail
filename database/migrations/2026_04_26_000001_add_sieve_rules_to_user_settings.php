@@ -21,42 +21,23 @@
  *  For custom changes, use the template and plugin system.
  */
 
-namespace App\Models;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-use Illuminate\Database\Eloquent\Model;
-
-class UserSetting extends Model
+return new class extends Migration
 {
-    protected $table = 'user_settings';
-
-    protected $fillable = [
-        'email',
-        'group_id',
-        'display_name',
-        'signature',
-        'per_page',
-        'image_loading',
-        'reply_behavior',
-        'theme',
-        'template',
-        'sieve_rules',
-    ];
-
-    protected $casts = [
-        'per_page' => 'integer',
-    ];
-
-    /** Default values used when no row exists yet. */
-    public static function defaults(): array
+    public function up(): void
     {
-        return [
-            'display_name'   => '',
-            'signature'      => '',
-            'per_page'       => 25,
-            'image_loading'  => 'ask',
-            'reply_behavior' => 'reply',
-            'theme'          => 'light',
-            'template'       => null,
-        ];
+        Schema::table('user_settings', function (Blueprint $table) {
+            $table->text('sieve_rules')->nullable()->after('template');
+        });
     }
-}
+
+    public function down(): void
+    {
+        Schema::table('user_settings', function (Blueprint $table) {
+            $table->dropColumn('sieve_rules');
+        });
+    }
+};

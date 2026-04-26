@@ -25,6 +25,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Contact;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Str;
 
 class ContactController extends Controller
 {
@@ -125,6 +127,119 @@ class ContactController extends Controller
         return response()->json($contacts);
     }
 
+    /**
+     * Export all contacts as vCard (.vcf) or CSV.
+     * GET /contacts/export?format=vcf|csv
+     */
+    public function export(Request $request): mixed
+    {
+        $format   = $request->query('format', 'vcf');
+        $contacts = Contact::where('owner_email', $this->ownerEmail())
+            ->orderBy('name')->orderBy('email')->get();
+
+        if ($format === 'csv') {
+            $rows   = ["Name,Email,Phone,Notes\r\n"];
+            foreach ($contacts as $c) {
+                $rows[] = implode(',', array_map(
+                    fn($v) => '"' . str_replace('"', '""', (string) $v) . '"',
+                    [$c->name, $c->email, $c->phone, $c->notes],
+                )) . "\r\n";
+            }
+            return response(implode('', $rows), 200, [
+                'Content-Type'        => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="contacts.csv"',
+            ]);
+        }
+
+        // vCard 3.0
+        $vcards = '';
+        foreach ($contacts as $c) {
+            $vcards .= "BEGIN:VCARD\r\nVERSION:3.0\r\n";
+            if ($c->name !== '') {
+                $vcards .= 'FN:' . $this->vcardEscape($c->name) . "\r\n";
+            }
+            $vcards .= 'EMAIL:' . $this->vcardEscape($c->email) . "\r\n";
+            if ($c->phone !== '') {
+                $vcards .= 'TEL:' . $this->vcardEscape($c->phone) . "\r\n";
+            }
+            if ($c->notes !== '') {
+                $vcards .= 'NOTE:' . $this->vcardEscape($c->notes) . "\r\n";
+            }
+            $vcards .= "END:VCARD\r\n";
+        }
+
+        return response($vcards, 200, [
+            'Content-Type'        => 'text/vcard; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="contacts.vcf"',
+        ]);
+    }
+
+    /**
+     * Import contacts from a vCard (.vcf) or CSV file.
+     * POST /contacts/import
+     */
+    public function import(Request $request): mixed
+    {
+        $request->validate([
+            'import_file' => ['required', 'file', 'mimes:vcf,csv,txt', 'max:2048'],
+        ]);
+
+        $file     = $request->file('import_file');
+        $content  = $file->get();
+        $ext      = strtolower($file->getClientOriginalExtension());
+        $owner    = $this->ownerEmail();
+        $imported = 0;
+        $skipped  = 0;
+
+        if ($ext === 'csv' || $ext === 'txt') {
+            $lines = preg_split('/\r?\n/', trim($content));
+            array_shift($lines); // skip header row
+            foreach ($lines as $line) {
+                if (trim($line) === '') {
+                    continue;
+                }
+                $cols  = str_getcsv($line);
+                $name  = trim($cols[0] ?? '');
+                $email = trim($cols[1] ?? '');
+                $phone = trim($cols[2] ?? '');
+                $notes = trim($cols[3] ?? '');
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $skipped++;
+                    continue;
+                }
+                Contact::updateOrCreate(
+                    ['owner_email' => $owner, 'email' => $email],
+                    ['name' => $name, 'phone' => $phone, 'notes' => $notes],
+                );
+                $imported++;
+            }
+        } else {
+            // Parse vCards
+            $vcards = preg_split('/END:VCARD/i', $content);
+            foreach ($vcards as $block) {
+                if (!preg_match('/BEGIN:VCARD/i', $block)) {
+                    continue;
+                }
+                $email = $this->vcardField($block, 'EMAIL');
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $skipped++;
+                    continue;
+                }
+                $name  = $this->vcardField($block, 'FN');
+                $phone = $this->vcardField($block, 'TEL');
+                $notes = $this->vcardField($block, 'NOTE');
+                Contact::updateOrCreate(
+                    ['owner_email' => $owner, 'email' => $email],
+                    ['name' => $name, 'phone' => $phone, 'notes' => $notes],
+                );
+                $imported++;
+            }
+        }
+
+        return redirect()->route('contacts')
+            ->with('success', "Imported {$imported} contact(s)" . ($skipped > 0 ? ", skipped {$skipped} invalid." : '.'));
+    }
+
     // ------------------------------------------------------------------
 
     private function ownerEmail(): string
@@ -135,5 +250,20 @@ class ContactController extends Controller
     private function authorise(Contact $contact): void
     {
         abort_unless($contact->owner_email === $this->ownerEmail(), 403);
+    }
+
+    private function vcardEscape(string $value): string
+    {
+        return str_replace(["\r\n", "\n", "\r", ',', ';', '\\'], ['\n', '\n', '\n', '\,', '\;', '\\\\'], $value);
+    }
+
+    private function vcardField(string $block, string $field): string
+    {
+        if (preg_match('/^' . preg_quote($field, '/') . '[^:]*:(.*)/mi', $block, $m)) {
+            $val = trim($m[1]);
+            $val = str_replace(['\n', '\,', '\;', '\\\\'], ["\n", ',', ';', '\\'], $val);
+            return $val;
+        }
+        return '';
     }
 }

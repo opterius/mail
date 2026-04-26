@@ -34,11 +34,19 @@ class SearchController extends Controller
 
     public function index(Request $request): mixed
     {
-        $query    = trim($request->get('q', ''));
-        $messages = [];
-        $folders  = [];
-        $error    = null;
-        $total    = 0;
+        $query      = trim($request->get('q', ''));
+        $fromFilter = trim($request->get('from', ''));
+        $since      = trim($request->get('since', ''));
+        $before     = trim($request->get('before', ''));
+        $folder     = trim($request->get('folder', 'INBOX'));
+        $seen       = $request->get('seen', '');   // '' | '1' | '0'
+        $hasAttach  = (bool) $request->get('attachment', false);
+
+        $messages   = [];
+        $folders    = [];
+        $error      = null;
+        $total      = 0;
+        $hasFilters = $query !== '' || $fromFilter !== '' || $since !== '' || $before !== '' || $seen !== '' || $hasAttach;
 
         /** @var ImapGuard $guard */
         $guard    = auth('web');
@@ -54,16 +62,17 @@ class SearchController extends Controller
             );
             $imap->login($guard->getImapLogin(), $guard->getImapPassword());
 
-            $folders = array_map(
+            $rawFolders = $imap->listFolders();
+            $folders    = array_map(
                 fn(array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
-                $imap->listFolders()
+                $rawFolders
             );
 
-            if ($query !== '') {
-                $imap->selectFolder('INBOX');
+            if ($hasFilters) {
+                $searchFolder = $folder !== '' ? $folder : 'INBOX';
+                $imap->selectFolder($searchFolder);
 
-                $q        = '"' . addcslashes($query, '"\\') . '"';
-                $criteria = "OR SUBJECT {$q} FROM {$q}";
+                $criteria = $this->buildCriteria($query, $fromFilter, $since, $before, $seen, $hasAttach);
                 $uids     = array_slice($imap->search($criteria), 0, self::MAX_RESULTS);
                 $total    = count($uids);
                 $messages = $imap->fetchHeadersByUids($uids);
@@ -81,10 +90,60 @@ class SearchController extends Controller
             'folders'       => $folders,
             'currentFolder' => '',
             'query'         => $query,
+            'fromFilter'    => $fromFilter,
+            'since'         => $since,
+            'before'        => $before,
+            'searchFolder'  => $folder,
+            'seen'          => $seen,
+            'hasAttach'     => $hasAttach,
             'messages'      => $messages,
             'total'         => $total,
             'error'         => $error,
         ]);
+    }
+
+    // ------------------------------------------------------------------
+
+    private function buildCriteria(string $q, string $from, string $since, string $before, string $seen, bool $hasAttach): string
+    {
+        $parts = [];
+
+        if ($q !== '') {
+            $escaped = '"' . addcslashes($q, '"\\') . '"';
+            $parts[] = "OR SUBJECT {$escaped} FROM {$escaped}";
+        }
+
+        if ($from !== '') {
+            $escaped = '"' . addcslashes($from, '"\\') . '"';
+            $parts[] = "FROM {$escaped}";
+        }
+
+        if ($since !== '') {
+            try {
+                $dt      = Carbon::parse($since);
+                $parts[] = 'SINCE ' . $dt->format('d-M-Y');
+            } catch (\Throwable) {}
+        }
+
+        if ($before !== '') {
+            try {
+                $dt      = Carbon::parse($before);
+                $parts[] = 'BEFORE ' . $dt->format('d-M-Y');
+            } catch (\Throwable) {}
+        }
+
+        if ($seen === '1') {
+            $parts[] = 'SEEN';
+        } elseif ($seen === '0') {
+            $parts[] = 'UNSEEN';
+        }
+
+        // Attachment detection: match multipart/mixed in Content-Type header
+        if ($hasAttach) {
+            $parts[] = 'HEADER Content-Type "multipart/mixed"';
+        }
+
+        return $parts === [] ? 'ALL' : implode(' ', $parts);
     }
 
     // ------------------------------------------------------------------

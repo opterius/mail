@@ -115,4 +115,11 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    // Sieve filtering rules via ManageSieve protocol
+    'sieve_enabled' => (bool) env('SIEVE_ENABLED', false),
+    'sieve_port'    => (int)  env('SIEVE_PORT', 4190),
+
+    // Optional sa-learn binary for spam training
+    'salearn_path'  => env('SALEARN_PATH', ''),
+
 ];

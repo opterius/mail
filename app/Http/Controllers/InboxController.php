@@ -106,10 +106,14 @@ class InboxController extends Controller
             ]);
         }
 
+        // Group messages into threads by normalized subject
+        $threads = $this->groupThreads($messages);
+
         return view(mailView('inbox.index'), [
             'folders'       => $folders,
             'currentFolder' => $folder,
             'messages'      => $messages,
+            'threads'       => $threads,
             'total'         => $total,
             'page'          => $page,
             'totalPages'    => $totalPages,
@@ -132,5 +136,51 @@ class InboxController extends Controller
             }
             return $msg;
         }, $messages);
+    }
+
+    /**
+     * Group messages into threads by normalized subject.
+     * Returns an ordered list of thread groups, each newest-first.
+     * Each group: { key, messages[], count, latest }
+     */
+    private function groupThreads(array $messages): array
+    {
+        $byKey = [];
+
+        foreach ($messages as $msg) {
+            $key = $this->threadKey($msg['subject']);
+            $byKey[$key][] = $msg;
+        }
+
+        $threads = [];
+        $seen    = [];
+
+        // Preserve display order: first appearance of each thread key
+        foreach ($messages as $msg) {
+            $key = $this->threadKey($msg['subject']);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $group      = $byKey[$key];
+            $threads[]  = [
+                'key'      => $key,
+                'messages' => $group,
+                'count'    => count($group),
+                'latest'   => $group[0],
+            ];
+        }
+
+        return $threads;
+    }
+
+    /**
+     * Normalize a subject line to a thread key.
+     * Strips "Re:", "Fwd:", "Fwd[N]:" etc. (case-insensitive, repeated).
+     */
+    private function threadKey(string $subject): string
+    {
+        $clean = preg_replace('/^(re|fwd?|aw|sv|vs|antw)(\[\d+\])?:\s*/i', '', $subject);
+        return mb_strtolower(trim($clean ?? $subject));
     }
 }

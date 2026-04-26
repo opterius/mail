@@ -25,38 +25,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class UserSetting extends Model
+class UserTwoFactor extends Model
 {
-    protected $table = 'user_settings';
+    protected $table    = 'user_two_factor';
+    protected $fillable = ['email', 'secret', 'recovery_codes', 'enabled_at'];
+    protected $casts    = ['enabled_at' => 'datetime'];
 
-    protected $fillable = [
-        'email',
-        'group_id',
-        'display_name',
-        'signature',
-        'per_page',
-        'image_loading',
-        'reply_behavior',
-        'theme',
-        'template',
-        'sieve_rules',
-    ];
-
-    protected $casts = [
-        'per_page' => 'integer',
-    ];
-
-    /** Default values used when no row exists yet. */
-    public static function defaults(): array
+    public function isEnabled(): bool
     {
-        return [
-            'display_name'   => '',
-            'signature'      => '',
-            'per_page'       => 25,
-            'image_loading'  => 'ask',
-            'reply_behavior' => 'reply',
-            'theme'          => 'light',
-            'template'       => null,
-        ];
+        return $this->enabled_at !== null;
+    }
+
+    /** Return recovery codes as an array. */
+    public function getRecoveryCodesArray(): array
+    {
+        if ($this->recovery_codes === null || $this->recovery_codes === '') {
+            return [];
+        }
+        $decoded = json_decode($this->recovery_codes, true);
+        return is_array($decoded) ? $decoded : [];
     }
 }

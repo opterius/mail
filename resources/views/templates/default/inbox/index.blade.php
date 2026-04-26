@@ -225,59 +225,154 @@
         </div>
 
     {{-- ---------------------------------------------------------------- --}}
-    {{-- Message list                                                       --}}
+    {{-- Message list (thread-grouped)                                     --}}
     {{-- ---------------------------------------------------------------- --}}
     @else
         <ul class="divide-y divide-gray-100 dark:divide-gray-800">
-            @foreach($messages as $msg)
+            @foreach($threads as $thread)
                 @php
+                    $msg        = $thread['latest'];
+                    $threadCount = $thread['count'];
                     $fromName   = $msg['from']['name'] ?: $msg['from']['email'];
                     $initial    = mb_strtoupper(mb_substr($fromName, 0, 1, 'UTF-8'), 'UTF-8');
                     $avatarBg   = $avatarColors[$initial] ?? '#6366f1';
-                    $href       = route('message.show', [
-                        'folder' => rawurlencode($currentFolder),
-                        'uid'    => $msg['uid'],
-                    ]);
+                    $href       = route('message.show', ['folder' => rawurlencode($currentFolder), 'uid' => $msg['uid']]);
                     $flagUrl    = route('message.flag',    ['folder' => rawurlencode($currentFolder), 'uid' => $msg['uid']]);
                     $destroyUrl = route('message.destroy', ['folder' => rawurlencode($currentFolder), 'uid' => $msg['uid']]);
                     $isUnread   = !$msg['seen'];
                     $uid        = $msg['uid'];
                     $isSeen     = $msg['seen'];
                 @endphp
+
+                {{-- For multi-message threads, show a collapsible thread row --}}
+                @if($threadCount > 1)
+                <li x-data="{ expanded: false }" class="border-b border-gray-100 dark:border-gray-800">
+                    {{-- Thread summary row --}}
+                    <div @click="expanded = !expanded"
+                         class="relative flex items-center gap-4 px-5 py-3.5 cursor-pointer transition-colors group
+                                {{ $isUnread ? 'bg-orange-50/40 dark:bg-orange-900/10 hover:bg-orange-50 dark:hover:bg-orange-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/60' }}">
+
+                        {{-- Stacked avatars for thread participants --}}
+                        <div class="flex-shrink-0 flex -space-x-2 w-12">
+                            @foreach(array_slice($thread['messages'], 0, 3) as $i => $tm)
+                                @php
+                                    $tn = $tm['from']['name'] ?: $tm['from']['email'];
+                                    $ti = mb_strtoupper(mb_substr($tn, 0, 1, 'UTF-8'), 'UTF-8');
+                                    $tb = $avatarColors[$ti] ?? '#6366f1';
+                                @endphp
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white uppercase border-2 border-white dark:border-gray-900"
+                                     style="background-color: {{ $tb }}; z-index: {{ 10 - $i }}">
+                                    {{ $ti }}
+                                </div>
+                            @endforeach
+                        </div>
+
+                        {{-- Expand/collapse arrow --}}
+                        <div class="flex-shrink-0 text-gray-400 transition-transform duration-150" :class="expanded ? 'rotate-90' : ''">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+
+                        {{-- Thread content --}}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between gap-3 mb-0.5">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    @if($isUnread)
+                                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-orange-500"></div>
+                                    @endif
+                                    <span class="text-sm truncate {{ $isUnread ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300' }}">
+                                        {{ $msg['subject'] ?: '(no subject)' }}
+                                    </span>
+                                    <span class="flex-shrink-0 px-1.5 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full">
+                                        {{ $threadCount }}
+                                    </span>
+                                </div>
+                                <span class="flex-shrink-0 text-xs {{ $isUnread ? 'text-gray-600 dark:text-gray-400 font-medium' : 'text-gray-400 dark:text-gray-500' }}">
+                                    {{ $msg['date_formatted'] ?? '' }}
+                                </span>
+                            </div>
+                            <p class="text-xs text-gray-400 dark:text-gray-500 truncate">
+                                {{ implode(', ', array_unique(array_map(fn($m) => $m['from']['name'] ?: $m['from']['email'], $thread['messages']))) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    {{-- Expanded thread messages --}}
+                    <div x-show="expanded" x-cloak
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="opacity-0"
+                         x-transition:enter-end="opacity-100"
+                         class="bg-gray-50/50 dark:bg-gray-800/30 border-t border-gray-100 dark:border-gray-800">
+                        @foreach($thread['messages'] as $tm)
+                            @php
+                                $tn  = $tm['from']['name'] ?: $tm['from']['email'];
+                                $th  = route('message.show', ['folder' => rawurlencode($currentFolder), 'uid' => $tm['uid']]);
+                                $tfl = route('message.flag',    ['folder' => rawurlencode($currentFolder), 'uid' => $tm['uid']]);
+                                $tdl = route('message.destroy', ['folder' => rawurlencode($currentFolder), 'uid' => $tm['uid']]);
+                                $ti  = mb_strtoupper(mb_substr($tn, 0, 1, 'UTF-8'), 'UTF-8');
+                                $tb  = $avatarColors[$ti] ?? '#6366f1';
+                            @endphp
+                            <div x-data="{
+                                flagged: {{ $tm['flagged'] ? 'true' : 'false' }},
+                                seen: {{ $tm['seen'] ? 'true' : 'false' }},
+                                deleted: false,
+                                toggleFlag() {
+                                    fetch({{ Js::from($tfl) }}, { method:'POST', headers:{'X-CSRF-TOKEN':{{ Js::from(csrf_token()) }},'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({flag:'\\\\Flagged',add:!this.flagged}) }).then(()=>{ this.flagged=!this.flagged; });
+                                },
+                                deleteMsg() {
+                                    fetch({{ Js::from($tdl) }}, { method:'DELETE', headers:{'X-CSRF-TOKEN':{{ Js::from(csrf_token()) }},'Accept':'application/json'} }).then(r=>{ if(r.ok) this.deleted=true; });
+                                }
+                            }"
+                                 x-show="!deleted"
+                                 class="relative flex items-center gap-3 pl-8 pr-5 py-3 border-t border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 group transition-colors">
+
+                                <div class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white uppercase"
+                                     style="background-color: {{ $tb }}">
+                                    {{ $ti }}
+                                </div>
+
+                                <a href="{{ $th }}" class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-sm truncate {{ !$tm['seen'] ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300' }}">
+                                            {{ $tn }}
+                                        </span>
+                                        <span class="text-xs text-gray-400">{{ $tm['date_formatted'] ?? '' }}</span>
+                                    </div>
+                                </a>
+
+                                <div class="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity" @click.stop>
+                                    <button @click="toggleFlag()" :class="flagged ? 'text-orange-400' : 'text-gray-400 hover:text-orange-400'"
+                                            class="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                        </svg>
+                                    </button>
+                                    <button @click="deleteMsg()" class="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </li>
+
+                @else
+                {{-- Single message row (original style) --}}
                 <li x-data="{
                         flagged: {{ $msg['flagged'] ? 'true' : 'false' }},
                         seen: {{ $isSeen ? 'true' : 'false' }},
                         deleted: false,
                         toggleFlag() {
-                            fetch({{ Js::from($flagUrl) }}, {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRF-TOKEN': {{ Js::from(csrf_token()) }},
-                                    'Content-Type': 'application/json',
-                                    'Accept': 'application/json'
-                                },
-                                body: JSON.stringify({ flag: '\\\\Flagged', add: !this.flagged })
-                            }).then(() => { this.flagged = !this.flagged; });
+                            fetch({{ Js::from($flagUrl) }}, { method:'POST', headers:{'X-CSRF-TOKEN':{{ Js::from(csrf_token()) }},'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({flag:'\\\\Flagged',add:!this.flagged}) }).then(()=>{ this.flagged=!this.flagged; });
                         },
                         toggleSeen() {
-                            fetch({{ Js::from($flagUrl) }}, {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRF-TOKEN': {{ Js::from(csrf_token()) }},
-                                    'Content-Type': 'application/json',
-                                    'Accept': 'application/json'
-                                },
-                                body: JSON.stringify({ flag: '\\\\Seen', add: !this.seen })
-                            }).then(() => { this.seen = !this.seen; });
+                            fetch({{ Js::from($flagUrl) }}, { method:'POST', headers:{'X-CSRF-TOKEN':{{ Js::from(csrf_token()) }},'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({flag:'\\\\Seen',add:!this.seen}) }).then(()=>{ this.seen=!this.seen; });
                         },
                         deleteMsg() {
-                            fetch({{ Js::from($destroyUrl) }}, {
-                                method: 'DELETE',
-                                headers: {
-                                    'X-CSRF-TOKEN': {{ Js::from(csrf_token()) }},
-                                    'Accept': 'application/json'
-                                }
-                            }).then(r => { if (r.ok) this.deleted = true; });
+                            fetch({{ Js::from($destroyUrl) }}, { method:'DELETE', headers:{'X-CSRF-TOKEN':{{ Js::from(csrf_token()) }},'Accept':'application/json'} }).then(r=>{ if(r.ok) this.deleted=true; });
                         }
                     }"
                     x-show="!deleted"
@@ -285,12 +380,9 @@
                     x-transition:leave-start="opacity-100"
                     x-transition:leave-end="opacity-0 -translate-x-2">
                     <div class="relative flex items-center gap-4 px-5 py-4 transition-colors group
-                                {{ $isUnread
-                                    ? 'bg-orange-50/40 dark:bg-orange-900/10 hover:bg-orange-50 dark:hover:bg-orange-900/20'
-                                    : 'hover:bg-gray-50 dark:hover:bg-gray-800/60' }}"
+                                {{ $isUnread ? 'bg-orange-50/40 dark:bg-orange-900/10 hover:bg-orange-50 dark:hover:bg-orange-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/60' }}"
                          :class="selected.has({{ $uid }}) ? 'bg-orange-50 dark:bg-orange-900/20' : ''">
 
-                        {{-- Checkbox --}}
                         <label class="flex-shrink-0 flex items-center cursor-pointer" @click.stop>
                             <input type="checkbox"
                                    :checked="selected.has({{ $uid }})"
@@ -298,90 +390,67 @@
                                    class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-orange-500 focus:ring-orange-400 cursor-pointer">
                         </label>
 
-                        {{-- Unread dot — reactive to seen state --}}
                         <div class="flex-shrink-0 w-2">
                             <div class="w-2 h-2 rounded-full bg-orange-500" x-show="!seen"></div>
                         </div>
 
-                        {{-- Avatar --}}
-                        <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center
-                                    text-sm font-bold text-white uppercase select-none shadow-sm"
+                        <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white uppercase select-none shadow-sm"
                              style="background-color: {{ $avatarBg }}">
                             {{ $initial }}
                         </div>
 
-                        {{-- Content — clicking navigates to message --}}
                         <a href="{{ $href }}" class="flex-1 min-w-0">
                             <div class="flex items-center justify-between gap-3 mb-0.5">
-                                <span class="text-sm truncate
-                                             {{ $isUnread ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300' }}">
+                                <span class="text-sm truncate {{ $isUnread ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300' }}">
                                     {{ $fromName }}
                                 </span>
                                 <span class="flex-shrink-0 text-xs {{ $isUnread ? 'text-gray-600 dark:text-gray-400 font-medium' : 'text-gray-400 dark:text-gray-500' }}">
                                     {{ $msg['date_formatted'] ?? '' }}
                                 </span>
                             </div>
-                            <p class="text-sm truncate
-                                      {{ $isUnread ? 'font-semibold text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400' }}">
+                            <p class="text-sm truncate {{ $isUnread ? 'font-semibold text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400' }}">
                                 {{ $msg['subject'] ?: '(no subject)' }}
                             </p>
                         </a>
 
-                        {{-- Right side: flagged indicator + hover quick actions --}}
                         <div class="flex-shrink-0 flex items-center" style="width:88px" @click.stop>
-                            {{-- Flagged star: visible when flagged, fades away on row hover --}}
-                            <span x-show="flagged"
-                                  class="transition-opacity duration-150 group-hover:opacity-0 pointer-events-none">
+                            <span x-show="flagged" class="transition-opacity duration-150 group-hover:opacity-0 pointer-events-none">
                                 <svg class="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                                 </svg>
                             </span>
-
-                            {{-- Quick actions: appear on row hover --}}
-                            <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5 absolute"
-                                 style="right: 20px">
-                                {{-- Mark read / unread --}}
-                                <button @click="toggleSeen()"
-                                        :title="seen ? 'Mark as unread' : 'Mark as read'"
+                            <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5 absolute" style="right: 20px">
+                                <button @click="toggleSeen()" :title="seen ? 'Mark as unread' : 'Mark as read'"
                                         class="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
                                     <template x-if="seen">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                                         </svg>
                                     </template>
                                     <template x-if="!seen">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0l-8 5-8-5"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0l-8 5-8-5"/>
                                         </svg>
                                     </template>
                                 </button>
-
-                                {{-- Flag / Unflag --}}
-                                <button @click="toggleFlag()"
-                                        :title="flagged ? 'Unflag' : 'Flag'"
+                                <button @click="toggleFlag()" :title="flagged ? 'Unflag' : 'Flag'"
                                         :class="flagged ? 'text-orange-400 hover:text-gray-400' : 'text-gray-400 hover:text-orange-400'"
                                         class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                                     </svg>
                                 </button>
-
-                                {{-- Delete --}}
-                                <button @click="deleteMsg()"
-                                        title="Delete"
+                                <button @click="deleteMsg()" title="Delete"
                                         class="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                     </svg>
                                 </button>
                             </div>
                         </div>
-
                     </div>
                 </li>
+                @endif
             @endforeach
         </ul>
 

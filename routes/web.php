@@ -31,6 +31,9 @@ use App\Http\Controllers\InboxController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SieveController;
+use App\Http\Controllers\SpamController;
+use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\Api\CheckNewMailController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\SsoController;
@@ -83,6 +86,8 @@ Route::middleware('imap.auth')->group(function () {
     Route::delete('/message/{folder}/{uid}', [MessageController::class, 'destroy'])->name('message.destroy');
     Route::post('/message/{folder}/{uid}/move', [MessageController::class, 'move'])->name('message.move');
     Route::post('/message/{folder}/{uid}/flag', [MessageController::class, 'flag'])->name('message.flag');
+    Route::post('/message/{folder}/{uid}/spam',    [SpamController::class, 'markSpam'])->name('message.spam');
+    Route::post('/message/{folder}/{uid}/notspam', [SpamController::class, 'markNotSpam'])->name('message.notspam');
 
     // Compose
     Route::get('/compose', [ComposeController::class, 'create'])->name('compose');
@@ -98,6 +103,8 @@ Route::middleware('imap.auth')->group(function () {
     Route::get('/contacts', [ContactController::class, 'index'])->name('contacts');
     Route::post('/contacts', [ContactController::class, 'store'])->name('contacts.store');
     Route::get('/contacts/search', [ContactController::class, 'autocomplete'])->name('contacts.autocomplete');
+    Route::get('/contacts/export', [ContactController::class, 'export'])->name('contacts.export');
+    Route::post('/contacts/import', [ContactController::class, 'import'])->name('contacts.import');
     Route::get('/contacts/{contact}', [ContactController::class, 'show'])->name('contacts.show');
     Route::put('/contacts/{contact}', [ContactController::class, 'update'])->name('contacts.update');
     Route::delete('/contacts/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');
@@ -105,6 +112,16 @@ Route::middleware('imap.auth')->group(function () {
     // Settings
     Route::get('/settings', [SettingController::class, 'index'])->name('settings');
     Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
+
+    // Two-factor authentication setup
+    Route::get('/settings/2fa',          [TwoFactorController::class, 'show'])->name('2fa.setup');
+    Route::post('/settings/2fa/enable',  [TwoFactorController::class, 'enable'])->name('2fa.enable');
+    Route::post('/settings/2fa/disable', [TwoFactorController::class, 'disable'])->name('2fa.disable');
+
+    // Sieve filtering rules
+    Route::get('/sieve',         [SieveController::class, 'index'])->name('sieve.index');
+    Route::post('/sieve',        [SieveController::class, 'store'])->name('sieve.store');
+    Route::delete('/sieve/{id}', [SieveController::class, 'destroy'])->name('sieve.destroy');
 
     // Attachments
     Route::get('/attachment/{folder}/{uid}/{part}', [AttachmentController::class, 'download'])->name('attachment.download');

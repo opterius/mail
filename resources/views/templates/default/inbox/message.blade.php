@@ -20,6 +20,34 @@
     $replyHref   = route('compose.reply',   ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']]);
     $forwardHref = route('compose.forward', ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']]);
 
+    $isJunk = (function() use ($message, $folders) {
+        foreach ($folders as $f) {
+            if ($f['name'] !== $message['folder']) continue;
+            $attrs = $f['attributes'] ?? [];
+            $name  = strtoupper($f['name']);
+            return in_array('\\junk', $attrs, true) || in_array('\\spam', $attrs, true)
+                || str_contains($name, 'JUNK') || str_contains($name, 'SPAM');
+        }
+        return str_contains(strtoupper($message['folder']), 'JUNK')
+            || str_contains(strtoupper($message['folder']), 'SPAM');
+    })();
+
+    $spamUrl    = route('message.spam',     ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']]);
+    $notSpamUrl = route('message.notspam',  ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']]);
+
+    // Build reply-quoted body as plain text for the inline reply form
+    $replyQuote = '';
+    if ($message['body_text'] !== '') {
+        $replyQuote = $message['body_text'];
+    } elseif ($message['body_html'] !== '') {
+        $replyQuote = strip_tags($message['body_html']);
+    }
+    $fromEmail  = $message['from']['email'];
+    $fromName   = $message['from']['name'] ?: $fromEmail;
+    $replyTo    = $fromName ? "{$fromName} <{$fromEmail}>" : $fromEmail;
+    $replySubj  = preg_match('/^re:/i', $message['subject']) ? $message['subject'] : 'Re: ' . $message['subject'];
+@endphp
+
     $fromName  = $message['from']['name'] ?: $message['from']['email'];
     $fromEmail = $message['from']['email'];
     $initial   = mb_strtoupper(mb_substr($fromName, 0, 1, 'UTF-8'), 'UTF-8');
@@ -58,17 +86,18 @@
             Back
         </a>
 
-        <div class="flex items-center gap-1 ml-auto">
-            {{-- Reply --}}
-            <a href="{{ $replyHref }}"
-               class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-               title="Reply (r)">
+        <div class="flex items-center gap-1 ml-auto" x-data="{ replyOpen: false }">
+            {{-- Reply (inline) --}}
+            <button @click="replyOpen = !replyOpen; $nextTick(() => replyOpen && document.getElementById('inline-reply-editor')?.focus())"
+                    :class="replyOpen ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                    class="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors"
+                    title="Reply (r)">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
                 </svg>
                 Reply
-            </a>
+            </button>
 
             {{-- Forward --}}
             <a href="{{ $forwardHref }}"
@@ -131,6 +160,29 @@
                     @endforeach
                 </div>
             </div>
+            @endif
+
+            {{-- Spam / Not Spam --}}
+            @if($isJunk)
+            <button id="not-spam-btn"
+                    type="button"
+                    title="Not spam — move to Inbox"
+                    class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-400 rounded-lg transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Not spam
+            </button>
+            @else
+            <button id="spam-btn"
+                    type="button"
+                    title="Mark as spam"
+                    class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                </svg>
+                Spam
+            </button>
             @endif
 
             {{-- Delete --}}
@@ -255,6 +307,95 @@
         @endif
     </div>
 
+    {{-- Inline Reply Form --}}
+    <div x-show="replyOpen" x-cloak
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         class="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+         x-data="{
+             replySending: false,
+             replyStatus: '',
+             csrfToken: {{ Js::from(csrf_token()) }},
+             sendUrl: {{ Js::from(route('compose.send')) }},
+             async send() {
+                 this.replySending = true;
+                 this.replyStatus = '';
+                 const body = document.getElementById('inline-reply-editor');
+                 const fd = new FormData();
+                 fd.append('to',      {{ Js::from($replyTo) }});
+                 fd.append('subject', {{ Js::from($replySubj) }});
+                 fd.append('body',    body ? body.innerHTML : '');
+                 try {
+                     const r = await fetch(this.sendUrl, {
+                         method: 'POST',
+                         headers: { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json' },
+                         body: fd,
+                     });
+                     if (r.ok) {
+                         this.replyStatus = 'sent';
+                         this.$dispatch('reply-sent');
+                         setTimeout(() => { replyOpen = false; }, 2000);
+                     } else {
+                         const j = await r.json().catch(() => ({}));
+                         this.replyStatus = j.message || 'Could not send reply.';
+                     }
+                 } catch { this.replyStatus = 'Could not send reply.'; }
+                 this.replySending = false;
+             }
+         }">
+
+        {{-- Reply header --}}
+        <div class="flex items-center justify-between px-6 py-3 border-b border-gray-100 dark:border-gray-800">
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+                <span class="font-medium">Reply to:</span>
+                <span class="ml-1 text-gray-800 dark:text-gray-200">{{ $replyTo }}</span>
+                <span class="ml-2 text-gray-400">·</span>
+                <span class="ml-2">{{ $replySubj }}</span>
+            </div>
+            <a href="{{ $replyHref }}"
+               class="text-xs text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors">
+                Open full editor
+            </a>
+        </div>
+
+        {{-- Trix editor for inline reply --}}
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/trix@2/dist/trix.css">
+        <script src="https://cdn.jsdelivr.net/npm/trix@2/dist/trix.umd.min.js"></script>
+        <style>
+            #inline-reply-editor trix-editor { min-height: 140px; border: none !important; font-size: 0.9rem; padding: 0.75rem 1.5rem; }
+            #inline-reply-editor trix-toolbar .trix-button-group--file-tools { display: none; }
+        </style>
+        <div id="inline-reply-editor" class="min-h-[160px]">
+            <input type="hidden" id="inline-body" value="">
+            <trix-editor input="inline-body" placeholder="Write your reply…"></trix-editor>
+        </div>
+
+        {{-- Footer --}}
+        <div class="flex items-center gap-3 px-6 py-3 border-t border-gray-100 dark:border-gray-800">
+            <button @click="send()"
+                    :disabled="replySending"
+                    class="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors">
+                <svg x-show="!replySending" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                </svg>
+                <svg x-show="replySending" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span x-text="replySending ? 'Sending…' : 'Send Reply'"></span>
+            </button>
+            <button @click="replyOpen = false"
+                    class="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                Cancel
+            </button>
+            <span x-show="replyStatus === 'sent'" x-cloak class="text-sm text-green-600 dark:text-green-400">
+                Reply sent!
+            </span>
+            <span x-show="replyStatus !== '' && replyStatus !== 'sent'" x-cloak class="text-sm text-red-500" x-text="replyStatus"></span>
+        </div>
+    </div>
+
 </div>
 @endsection
 
@@ -264,7 +405,9 @@
     var replyHref   = {{ Js::from($replyHref) }};
     var forwardHref = {{ Js::from($forwardHref) }};
     var backHref    = {{ Js::from($backHref) }};
-    var flagUrl     = {{ Js::from(route('message.flag', ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']])) }};
+    var flagUrl     = {{ Js::from(route('message.flag',    ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']])) }};
+    var spamUrl     = {{ Js::from(route('message.spam',    ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']])) }};
+    var notSpamUrl  = {{ Js::from(route('message.notspam', ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']])) }};
     var csrfToken   = {{ Js::from(csrf_token()) }};
 
     function markUnread() {
@@ -283,6 +426,30 @@
 
     document.getElementById('mark-unread-btn').addEventListener('click', markUnread);
 
+    var spamBtn = document.getElementById('spam-btn');
+    if (spamBtn) {
+        spamBtn.addEventListener('click', function () {
+            fetch(spamUrl, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+            }).then(function (r) {
+                if (r.ok) { window.location.href = backHref; }
+            });
+        });
+    }
+
+    var notSpamBtn = document.getElementById('not-spam-btn');
+    if (notSpamBtn) {
+        notSpamBtn.addEventListener('click', function () {
+            fetch(notSpamUrl, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+            }).then(function (r) {
+                if (r.ok) { window.location.href = {{ Js::from(route('inbox')) }}; }
+            });
+        });
+    }
+
     function isTyping(el) {
         var tag = el.tagName;
         return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
@@ -293,7 +460,11 @@
         if (e.ctrlKey || e.altKey || e.metaKey) return;
 
         switch (e.key) {
-            case 'r': window.location.href = replyHref;   break;
+            case 'r':
+                // Toggle inline reply (Alpine toggles replyOpen)
+                var btn = document.querySelector('[\\@click*="replyOpen"]');
+                if (btn) btn.click();
+                break;
             case 'f': window.location.href = forwardHref; break;
             case 'u': markUnread(); break;
             case 'Escape': window.location.href = backHref; break;

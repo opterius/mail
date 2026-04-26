@@ -382,6 +382,92 @@ class ImapConnection
     }
 
     /**
+     * GETQUOTAROOT INBOX — returns used/limit in KB (RFC 2087).
+     * Returns ['used' => int, 'limit' => int] or null if unsupported.
+     *
+     * @return array{used: int, limit: int}|null
+     */
+    public function getQuota(): ?array
+    {
+        $result = $this->command('GETQUOTAROOT INBOX');
+        foreach ($result['untagged'] as $line) {
+            // * QUOTA "..." (STORAGE used limit)
+            if (preg_match('/\* QUOTA .* \(STORAGE (\d+) (\d+)\)/i', $line, $m)) {
+                return ['used' => (int) $m[1], 'limit' => (int) $m[2]];
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Fetch headers for a UID list, also returning References and In-Reply-To
+     * for thread grouping. Extends fetchHeadersByUids() result shape.
+     *
+     * @param  int[] $uids
+     * @return array<array{seq: int, uid: int, flags: string[], seen: bool, flagged: bool, from: array{name: string, email: string}, subject: string, date_raw: string, references: string, in_reply_to: string}>
+     */
+    public function fetchHeadersByUidsWithRefs(array $uids): array
+    {
+        if (empty($uids)) {
+            return [];
+        }
+
+        $uidList = implode(',', $uids);
+        $result  = $this->command(
+            "UID FETCH {$uidList} (UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE REFERENCES IN-REPLY-TO MESSAGE-ID)])"
+        );
+
+        $byUid = [];
+
+        foreach ($result['untagged'] as $line) {
+            if (!preg_match('/^\* (\d+) FETCH /i', $line, $sm)) {
+                continue;
+            }
+            $seq = (int) $sm[1];
+
+            $uid = 0;
+            if (preg_match('/\bUID (\d+)/i', $line, $m)) {
+                $uid = (int) $m[1];
+            }
+
+            $flags = [];
+            if (preg_match('/\bFLAGS \(([^)]*)\)/i', $line, $m)) {
+                $flags = array_values(array_filter(explode(' ', trim($m[1]))));
+            }
+
+            $rawHeaders = '';
+            if (preg_match('/\{(\d+)\}\r\n/', $line, $lm, PREG_OFFSET_CAPTURE)) {
+                $n          = (int) $lm[1][0];
+                $dataStart  = (int) $lm[0][1] + strlen($lm[0][0]);
+                $rawHeaders = substr($line, $dataStart, $n);
+            }
+
+            $byUid[$uid] = [
+                'seq'         => $seq,
+                'uid'         => $uid,
+                'flags'       => $flags,
+                'seen'        => in_array('\\Seen', $flags, true),
+                'flagged'     => in_array('\\Flagged', $flags, true),
+                'from'        => $this->parseFrom($this->decodeMimeHeader($this->parseHeader($rawHeaders, 'From'))),
+                'subject'     => $this->decodeMimeHeader($this->parseHeader($rawHeaders, 'Subject')) ?: '(no subject)',
+                'date_raw'    => $this->parseHeader($rawHeaders, 'Date'),
+                'message_id'  => trim($this->parseHeader($rawHeaders, 'Message-ID'), " \t<>"),
+                'references'  => $this->parseHeader($rawHeaders, 'References'),
+                'in_reply_to' => trim($this->parseHeader($rawHeaders, 'In-Reply-To'), " \t<>"),
+            ];
+        }
+
+        $ordered = [];
+        foreach ($uids as $uid) {
+            if (isset($byUid[$uid])) {
+                $ordered[] = $byUid[$uid];
+            }
+        }
+
+        return $ordered;
+    }
+
+    /**
      * Copy UIDs to $targetFolder then delete from the current folder.
      * Folder must already be selected.
      */

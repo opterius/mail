@@ -13,7 +13,7 @@
 
 @section('content')
 <div class="flex flex-col h-full"
-     x-data="{ showForm: false }">
+     x-data="{ showForm: false, showImport: false }">
 
     {{-- Toolbar --}}
     <div class="flex items-center justify-between px-6 py-3 border-b border-gray-100 bg-white sticky top-0 z-10">
@@ -23,14 +23,68 @@
                 <span class="text-xs text-gray-400">{{ $contacts->count() }}</span>
             @endif
         </div>
-        <button @click="showForm = !showForm"
-                :class="showForm ? 'bg-gray-100 text-gray-700' : 'text-orange-600 hover:bg-orange-50'"
-                class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            New Contact
-        </button>
+        <div class="flex items-center gap-2">
+            {{-- Export dropdown --}}
+            <div x-data="{ open: false }" class="relative">
+                <button @click="open = !open" @keydown.escape.window="open = false"
+                        class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Export
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <div x-show="open" @click.outside="open = false" style="display:none"
+                     class="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
+                    <a href="{{ route('contacts.export', ['format' => 'vcf']) }}"
+                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">vCard (.vcf)</a>
+                    <a href="{{ route('contacts.export', ['format' => 'csv']) }}"
+                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">CSV</a>
+                </div>
+            </div>
+
+            {{-- Import --}}
+            <button @click="showImport = !showImport"
+                    class="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12"/>
+                </svg>
+                Import
+            </button>
+
+            <button @click="showForm = !showForm"
+                    :class="showForm ? 'bg-gray-100 text-gray-700' : 'text-orange-600 hover:bg-orange-50'"
+                    class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                New Contact
+            </button>
+        </div>
+    </div>
+
+    {{-- Import form --}}
+    <div x-show="showImport" x-cloak class="px-6 py-4 border-b border-gray-100 bg-blue-50">
+        <form method="POST" action="{{ route('contacts.import') }}" enctype="multipart/form-data"
+              class="flex items-center gap-3">
+            @csrf
+            <label class="text-sm font-medium text-gray-700">Import from vCard or CSV:</label>
+            <input type="file" name="import_file" accept=".vcf,.csv,.txt" required
+                   class="text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200">
+            <button type="submit"
+                    class="px-4 py-1.5 text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
+                Import
+            </button>
+            <button type="button" @click="showImport = false"
+                    class="px-4 py-1.5 text-sm text-gray-500 hover:bg-gray-200 rounded-lg transition-colors">
+                Cancel
+            </button>
+        </form>
+        @error('import_file')
+            <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
+        @enderror
     </div>
 
     {{-- Flash success --}}

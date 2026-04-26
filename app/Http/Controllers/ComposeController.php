@@ -162,7 +162,10 @@ class ComposeController extends Controller
         $attachments = $request->file('attachments', []);
         $totalBytes  = array_sum(array_map(fn($f) => $f->getSize(), $attachments));
         if ($totalBytes > $maxMb * 1024 * 1024) {
-            return back()->withInput()->withErrors(['send' => "Total attachment size exceeds {$maxMb} MB."]);
+            $msg = "Total attachment size exceeds {$maxMb} MB.";
+            return $request->expectsJson()
+                ? response()->json(['message' => $msg], 422)
+                : back()->withInput()->withErrors(['send' => $msg]);
         }
 
         /** @var ImapGuard $guard */
@@ -226,9 +229,14 @@ class ComposeController extends Controller
                 status:         'failed',
             );
 
-            return back()
-                ->withInput()
-                ->withErrors(['send' => 'Could not send message: ' . $e->getMessage()]);
+            $msg = 'Could not send message: ' . $e->getMessage();
+            return $request->expectsJson()
+                ? response()->json(['message' => $msg], 500)
+                : back()->withInput()->withErrors(['send' => $msg]);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true]);
         }
 
         return redirect()->route('inbox')->with('success', 'Message sent.');
