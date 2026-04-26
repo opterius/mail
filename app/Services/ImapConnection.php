@@ -491,7 +491,7 @@ class ImapConnection
     public function fetchMessageHeaders(string $sequence): array
     {
         $result = $this->command(
-            "FETCH {$sequence} (UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])"
+            "FETCH {$sequence} (UID FLAGS RFC822.SIZE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE CONTENT-TYPE)])"
         );
 
         $messages = [];
@@ -514,6 +514,12 @@ class ImapConnection
                 $flags = array_values(array_filter(explode(' ', trim($m[1]))));
             }
 
+            // RFC822.SIZE
+            $size = 0;
+            if (preg_match('/\bRFC822\.SIZE (\d+)/i', $line, $m)) {
+                $size = (int) $m[1];
+            }
+
             // Extract header block using the literal length: {N}\r\n<N bytes>
             $rawHeaders = '';
             if (preg_match('/\{(\d+)\}\r\n/', $line, $lm, PREG_OFFSET_CAPTURE)) {
@@ -522,15 +528,21 @@ class ImapConnection
                 $rawHeaders = substr($line, $dataStart, $n);
             }
 
+            $contentType    = strtolower($this->parseHeader($rawHeaders, 'Content-Type'));
+            $hasAttachment  = str_contains($contentType, 'multipart/mixed')
+                           || str_contains($contentType, 'multipart/digest');
+
             $messages[$seq] = [
-                'seq'      => $seq,
-                'uid'      => $uid,
-                'flags'    => $flags,
-                'seen'     => in_array('\\Seen', $flags, true),
-                'flagged'  => in_array('\\Flagged', $flags, true),
-                'from'     => $this->parseFrom($this->decodeMimeHeader($this->parseHeader($rawHeaders, 'From'))),
-                'subject'  => $this->decodeMimeHeader($this->parseHeader($rawHeaders, 'Subject')) ?: '(no subject)',
-                'date_raw' => $this->parseHeader($rawHeaders, 'Date'),
+                'seq'            => $seq,
+                'uid'            => $uid,
+                'flags'          => $flags,
+                'seen'           => in_array('\\Seen', $flags, true),
+                'flagged'        => in_array('\\Flagged', $flags, true),
+                'size'           => $size,
+                'has_attachment' => $hasAttachment,
+                'from'           => $this->parseFrom($this->decodeMimeHeader($this->parseHeader($rawHeaders, 'From'))),
+                'subject'        => $this->decodeMimeHeader($this->parseHeader($rawHeaders, 'Subject')) ?: '(no subject)',
+                'date_raw'       => $this->parseHeader($rawHeaders, 'Date'),
             ];
         }
 

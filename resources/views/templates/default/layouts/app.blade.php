@@ -79,22 +79,6 @@
         </div>
 
         {{-- Search --}}
-        <div class="px-3 pb-3">
-            <form method="GET" action="{{ route('search') }}">
-                <div class="relative">
-                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
-                    </svg>
-                    <input id="sidebar-search" name="q" type="search"
-                           placeholder="Search mail…"
-                           value="{{ request('q') }}"
-                           class="w-full pl-9 pr-3 py-2 text-sm bg-gray-100 dark:bg-gray-800 border border-transparent focus:border-orange-400 focus:bg-white dark:focus:bg-gray-700 rounded-lg outline-none transition-colors text-gray-800 dark:text-gray-200 placeholder-gray-400">
-                </div>
-            </form>
-        </div>
-
         {{-- Folder list --}}
         <nav class="flex-1 px-2 overflow-y-auto"
              x-data="{ newFolderOpen: false, editingFolder: null, deletingFolder: null }">

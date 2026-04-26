@@ -427,9 +427,16 @@
                                     {{ $msg['date_formatted'] ?? '' }}
                                 </span>
                             </div>
-                            <p class="text-sm truncate {{ $isUnread ? 'font-semibold text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400' }}">
-                                {{ $msg['subject'] ?: '(no subject)' }}
-                            </p>
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                @if(!empty($msg['has_attachment']))
+                                    <svg class="flex-shrink-0 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                                    </svg>
+                                @endif
+                                <p class="text-sm truncate {{ $isUnread ? 'font-semibold text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400' }}">
+                                    {{ $msg['subject'] ?: '(no subject)' }}
+                                </p>
+                            </div>
                         </a>
 
                         <div class="flex-shrink-0 flex items-center" style="width:88px" @click.stop>

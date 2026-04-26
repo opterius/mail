@@ -89,7 +89,6 @@ class InboxController extends Controller
                 $from = max(1, $to - self::PER_PAGE + 1);
 
                 $messages = $imap->fetchMessageHeaders("{$from}:{$to}");
-                $messages = array_reverse($messages); // newest first
                 $messages = $this->formatDates($messages);
             }
 
