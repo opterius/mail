@@ -164,9 +164,13 @@ class SsoController extends Controller
                 ->withErrors(['email' => 'SSO login failed — could not authenticate with mail server.']);
         }
 
-        // Build the session exactly as ImapGuard::attempt() would, but with the
-        // master-user login stored separately so controllers can use it for IMAP.
-        session()->regenerate();
+        // CRITICAL: wipe any prior user's session before establishing the new
+        // SSO session. Without flush(), `regenerate()` keeps all old data and
+        // only the keys we explicitly set get overwritten — leaving stale
+        // imap_login/imap_display_name/2fa_pending/userSettings cache from
+        // the previous user, which can surface the wrong mailbox.
+        session()->flush();
+        session()->regenerate(true); // destroy old session ID
 
         session([
             'imap_email'        => $email,
@@ -175,7 +179,11 @@ class SsoController extends Controller
             'imap_display_name' => $email,
         ]);
 
-        // Hydrate the guard's in-memory user
+        // Force the session to be persisted now, before the redirect, so the
+        // next request reads the new data even with database/redis drivers.
+        session()->save();
+
+        // Hydrate the guard's in-memory user (only affects current request)
         $guard = auth('web');
         if (method_exists($guard, 'setUser')) {
             $guard->setUser(new ImapUser(email: $email, name: $email));
