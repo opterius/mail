@@ -139,14 +139,15 @@ class ComposeController extends Controller
 
         try {
             $rawMessage = (new SmtpSender())->send(
-                fromEmail: $email,
-                fromName:  $name,
-                password:  $password,
-                to:        $data['to'],
-                subject:   $data['subject'] ?? '',
-                bodyText:  $data['body'] ?? '',
-                cc:        $data['cc'] ?? '',
-                bcc:       $data['bcc'] ?? '',
+                fromEmail:    $email,
+                fromName:     $name,
+                password:     $password,
+                to:           $data['to'],
+                subject:      $data['subject'] ?? '',
+                bodyText:     $data['body'] ?? '',
+                cc:           $data['cc'] ?? '',
+                bcc:          $data['bcc'] ?? '',
+                authUsername: $guard->getImapLogin(),
             );
 
             MailSendLog::record(

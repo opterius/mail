@@ -38,6 +38,10 @@ class SmtpSender
      * Send a message. Returns the raw RFC 5322 message bytes so callers can
      * APPEND a copy to the user's Sent folder via IMAP.
      *
+     * $authUsername lets SSO sessions submit using the Dovecot master-user
+     * format ("user@domain*master-user") with the master password, while the
+     * From: address remains the plain user email.
+     *
      * @throws \Throwable on SMTP or addressing errors
      */
     public function send(
@@ -50,8 +54,12 @@ class SmtpSender
         string $bodyHtml = '',
         string $cc = '',
         string $bcc = '',
+        string $authUsername = '',
     ): string {
-        $transport = $this->buildTransport($fromEmail, $password);
+        $transport = $this->buildTransport(
+            $authUsername !== '' ? $authUsername : $fromEmail,
+            $password,
+        );
 
         $email = (new Email())
             ->from(new Address($fromEmail, $fromName ?: $fromEmail))
