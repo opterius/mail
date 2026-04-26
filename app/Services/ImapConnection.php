@@ -231,15 +231,18 @@ class ImapConnection
     public function getFolderStatus(string $folder): array
     {
         $f      = '"' . addcslashes($folder, '"\\') . '"';
-        $result = $this->command("STATUS {$f} (MESSAGES UNSEEN)");
+        $result = $this->command("STATUS {$f} (MESSAGES UNSEEN UIDNEXT)");
 
-        $stats = ['messages' => 0, 'unseen' => 0];
+        $stats = ['messages' => 0, 'unseen' => 0, 'uidnext' => 0];
         foreach ($result['untagged'] as $line) {
             if (preg_match('/\bMESSAGES (\d+)/i', $line, $m)) {
                 $stats['messages'] = (int) $m[1];
             }
             if (preg_match('/\bUNSEEN (\d+)/i', $line, $m)) {
                 $stats['unseen'] = (int) $m[1];
+            }
+            if (preg_match('/\bUIDNEXT (\d+)/i', $line, $m)) {
+                $stats['uidnext'] = (int) $m[1];
             }
         }
         return $stats;
