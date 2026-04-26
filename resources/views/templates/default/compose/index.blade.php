@@ -490,6 +490,16 @@
                 Send
             </button>
 
+            <button type="button" @click="saveDraft()"
+                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600
+                           bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                </svg>
+                Save Draft
+            </button>
+
             <a href="{{ $backHref }}"
                class="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
                 Discard

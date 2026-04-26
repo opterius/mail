@@ -337,14 +337,13 @@
         @if($message['body_html'] !== '')
             @php
                 $html = $message['body_html'];
-                if (!str_contains($html, '<base')) {
-                    if (stripos($html, '<head>') !== false) {
-                        $html = str_ireplace('<head>', '<head><base target="_blank">', $html);
-                    } elseif (stripos($html, '<html') !== false) {
-                        $html = preg_replace('/(<html[^>]*>)/i', '$1<head><base target="_blank"></head>', $html);
-                    } else {
-                        $html = '<base target="_blank">' . $html;
-                    }
+                $defaultStyle = '<style>body{font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.6;color:#1f2937;margin:0;padding:16px 24px;}a{color:#f97316;}</style>';
+                if (stripos($html, '<head>') !== false) {
+                    $html = str_ireplace('<head>', '<head><base target="_blank">' . $defaultStyle, $html);
+                } elseif (stripos($html, '<html') !== false) {
+                    $html = preg_replace('/(<html[^>]*>)/i', '$1<head><base target="_blank">' . $defaultStyle . '</head>', $html);
+                } else {
+                    $html = '<base target="_blank">' . $defaultStyle . $html;
                 }
             @endphp
             <iframe

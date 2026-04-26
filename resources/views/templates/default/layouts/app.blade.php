@@ -326,7 +326,20 @@
         </div>
 
         {{-- Main content --}}
-        <main class="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+        <main class="flex-1 overflow-y-auto bg-white dark:bg-gray-900 relative">
+            @if(session('success'))
+                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)"
+                     x-transition:leave="transition ease-in duration-300"
+                     x-transition:leave-start="opacity-100 translate-y-0"
+                     x-transition:leave-end="opacity-0 -translate-y-2"
+                     class="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5
+                            bg-green-600 text-white text-sm font-medium rounded-lg shadow-lg pointer-events-none">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    {{ session('success') }}
+                </div>
+            @endif
             @yield('content')
         </main>
 
