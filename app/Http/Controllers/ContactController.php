@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 /**
  * Opterius Mail - Open source webmail.
