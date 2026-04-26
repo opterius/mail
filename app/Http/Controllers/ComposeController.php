@@ -32,6 +32,8 @@ use App\Services\MimeParser;
 use App\Services\SmtpSender;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Symfony\Component\Mime\Address;
+use Symfony\Component\Mime\Email;
 
 class ComposeController extends Controller
 {
@@ -41,12 +43,41 @@ class ComposeController extends Controller
 
     public function create(Request $request): mixed
     {
+        $draftUid    = (int) $request->query('draft_uid', 0);
+        $draftFolder = (string) $request->query('draft_folder', '');
+
+        // Pre-fill from an existing draft when ?draft_uid= is present.
+        if ($draftUid > 0 && $draftFolder !== '') {
+            $draft = $this->fetchOriginal($draftFolder, $draftUid);
+            if ($draft !== null) {
+                $to  = implode(', ', array_map(
+                    fn($a) => $a['name'] ? "\"{$a['name']}\" <{$a['email']}>" : $a['email'],
+                    $draft['to'],
+                ));
+                $cc  = implode(', ', array_map(
+                    fn($a) => $a['name'] ? "\"{$a['name']}\" <{$a['email']}>" : $a['email'],
+                    $draft['cc'],
+                ));
+                return $this->showCompose([
+                    'mode'         => 'compose',
+                    'to'           => $to,
+                    'cc'           => $cc,
+                    'subject'      => $draft['subject'] !== '(no subject)' ? $draft['subject'] : '',
+                    'body'         => $draft['body_text'],
+                    'draftUid'     => $draftUid,
+                    'draftFolder'  => $draftFolder,
+                ]);
+            }
+        }
+
         return $this->showCompose([
-            'mode'    => 'compose',
-            'to'      => $request->query('to', ''),
-            'subject' => '',
-            'body'    => '',
-            'cc'      => '',
+            'mode'        => 'compose',
+            'to'          => $request->query('to', ''),
+            'subject'     => '',
+            'body'        => '',
+            'cc'          => '',
+            'draftUid'    => 0,
+            'draftFolder' => '',
         ]);
     }
 
@@ -76,6 +107,8 @@ class ComposeController extends Controller
             'cc'             => '',
             'originalFolder' => $folder,
             'originalUid'    => (int) $uid,
+            'draftUid'       => 0,
+            'draftFolder'    => '',
         ]);
     }
 
@@ -100,6 +133,8 @@ class ComposeController extends Controller
             'cc'             => '',
             'originalFolder' => $folder,
             'originalUid'    => (int) $uid,
+            'draftUid'       => 0,
+            'draftFolder'    => '',
         ]);
     }
 
@@ -172,6 +207,13 @@ class ComposeController extends Controller
             // Save a copy to the user's Sent folder. Failure here must not
             // surface to the user — the message was already delivered.
             $this->saveToSent($guard, $rawMessage);
+
+            // Delete the draft that was being edited, if any.
+            $draftUid    = (int) $request->input('draft_uid', 0);
+            $draftFolder = (string) $request->input('draft_folder', '');
+            if ($draftUid > 0 && $draftFolder !== '') {
+                $this->deleteDraft($guard, $draftFolder, $draftUid);
+            }
         } catch (\Throwable $e) {
             MailSendLog::record(
                 email:          $email,
@@ -191,8 +233,67 @@ class ComposeController extends Controller
 
     public function saveDraft(Request $request): mixed
     {
-        // Phase 3
-        return response()->json(['ok' => true]);
+        $data = $request->validate([
+            'to'           => ['nullable', 'string', 'max:2000'],
+            'cc'           => ['nullable', 'string', 'max:2000'],
+            'bcc'          => ['nullable', 'string', 'max:2000'],
+            'subject'      => ['nullable', 'string', 'max:998'],
+            'body'         => ['nullable', 'string'],
+            'draft_uid'    => ['nullable', 'integer', 'min:1'],
+            'draft_folder' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        /** @var ImapGuard $guard */
+        $guard = auth('web');
+
+        $raw = $this->buildDraftRaw(
+            fromEmail: $guard->user()->email,
+            fromName:  $guard->user()->name ?? '',
+            to:        $data['to']      ?? '',
+            cc:        $data['cc']      ?? '',
+            bcc:       $data['bcc']     ?? '',
+            subject:   $data['subject'] ?? '',
+            body:      $data['body']    ?? '',
+        );
+
+        $imap = new ImapConnection();
+        try {
+            $imap->connect(
+                host:         config('imap.host'),
+                port:         config('imap.port'),
+                encryption:   config('imap.encryption'),
+                validateCert: config('imap.validate_cert', false),
+                timeout:      config('imap.timeout', 10),
+            );
+            $imap->login($guard->getImapLogin(), $guard->getImapPassword());
+
+            $draftsFolder = $this->resolveDraftsFolder($imap);
+
+            // Delete the previous draft version before appending the new one.
+            $oldUid = (int) ($data['draft_uid'] ?? 0);
+            if ($oldUid > 0) {
+                $prevFolder = $data['draft_folder'] ?? $draftsFolder;
+                $imap->selectFolder($prevFolder);
+                $imap->deleteMessages((string) $oldUid);
+            }
+
+            $newUid = $imap->appendGetUid($draftsFolder, $raw, ['\\Draft', '\\Seen']);
+
+            $imap->logout();
+        } catch (\Throwable) {
+            $imap->close();
+            return response()->json(['ok' => false], 500);
+        }
+
+        if ($newUid === -1) {
+            return response()->json(['ok' => false], 500);
+        }
+
+        return response()->json([
+            'ok'     => true,
+            'uid'    => $newUid,   // 0 = server has no APPENDUID, >0 = trackable UID
+            'folder' => $draftsFolder,
+        ]);
     }
 
     // ------------------------------------------------------------------
@@ -286,6 +387,8 @@ class ComposeController extends Controller
             'currentFolder' => '',
             'fromEmail'     => $guard->user()->email,
             'fromName'      => $settings->display_name ?: $guard->user()->name,
+            'draftUid'      => $compose['draftUid']    ?? 0,
+            'draftFolder'   => $compose['draftFolder'] ?? '',
         ]));
     }
 
@@ -321,6 +424,113 @@ class ComposeController extends Controller
         } catch (\Throwable) {
             $imap->close();
         }
+    }
+
+    /**
+     * Delete a single draft message. Silent on failure.
+     */
+    private function deleteDraft(ImapGuard $guard, string $folder, int $uid): void
+    {
+        $imap = new ImapConnection();
+        try {
+            $imap->connect(
+                host:         config('imap.host'),
+                port:         config('imap.port'),
+                encryption:   config('imap.encryption'),
+                validateCert: config('imap.validate_cert', false),
+                timeout:      config('imap.timeout', 10),
+            );
+            $imap->login($guard->getImapLogin(), $guard->getImapPassword());
+            $imap->selectFolder($folder);
+            $imap->deleteMessages((string) $uid);
+            $imap->logout();
+        } catch (\Throwable) {
+            $imap->close();
+        }
+    }
+
+    /**
+     * Build a minimal RFC 5322 message suitable for saving as a draft.
+     * Uses Symfony Mime so encoding and header folding are handled correctly.
+     */
+    private function buildDraftRaw(
+        string $fromEmail,
+        string $fromName,
+        string $to,
+        string $cc,
+        string $bcc,
+        string $subject,
+        string $body,
+    ): string {
+        $email = (new Email())
+            ->from(new Address($fromEmail, $fromName ?: $fromEmail))
+            ->subject($subject ?: '(no subject)')
+            ->text($body);
+
+        foreach ($this->splitAddresses($to)  as $a) { $email->addTo($a); }
+        foreach ($this->splitAddresses($cc)  as $a) { $email->addCc($a); }
+        foreach ($this->splitAddresses($bcc) as $a) { $email->addBcc($a); }
+
+        return $email->toString();
+    }
+
+    /**
+     * Parse a comma/semicolon-separated address string into Symfony Address objects.
+     *
+     * @return Address[]
+     */
+    private function splitAddresses(string $raw): array
+    {
+        if (trim($raw) === '') {
+            return [];
+        }
+        $addresses = [];
+        foreach (preg_split('/[,;]/', $raw) ?: [] as $part) {
+            $part = trim($part);
+            if ($part === '') {
+                continue;
+            }
+            try {
+                if (preg_match('/^"?(.+?)"?\s*<([^>]+)>$/', $part, $m)) {
+                    $addresses[] = new Address(trim($m[2]), trim($m[1], ' "'));
+                } else {
+                    $addresses[] = new Address($part);
+                }
+            } catch (\Throwable) {
+                // Skip malformed addresses rather than aborting the draft save.
+            }
+        }
+        return $addresses;
+    }
+
+    /**
+     * Find the Drafts folder by SPECIAL-USE \Drafts attribute, falling back
+     * to common naming conventions, then plain "Drafts".
+     */
+    private function resolveDraftsFolder(ImapConnection $imap): string
+    {
+        try {
+            $folders = $imap->listFolders();
+        } catch (\Throwable) {
+            return 'Drafts';
+        }
+
+        foreach ($folders as $folder) {
+            if (in_array('\\drafts', $folder['attributes'], true)) {
+                return $folder['name'];
+            }
+        }
+
+        $candidates = ['Drafts', 'INBOX.Drafts', 'Draft'];
+        foreach ($candidates as $candidate) {
+            foreach ($folders as $folder) {
+                if (strcasecmp($folder['name'], $candidate) === 0) {
+                    return $folder['name'];
+                }
+            }
+        }
+
+        return 'Drafts';
     }
 
     /**

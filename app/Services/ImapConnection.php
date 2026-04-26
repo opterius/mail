@@ -204,6 +204,53 @@ class ImapConnection
     }
 
     /**
+     * APPEND a message and return the assigned UID (RFC 4315 APPENDUID).
+     * Returns the new UID on success, 0 if the server does not advertise
+     * APPENDUID, or -1 if the APPEND itself failed.
+     */
+    public function appendGetUid(string $folder, string $rawMessage, array $flags = []): int
+    {
+        if ($this->stream === null) {
+            return -1;
+        }
+
+        $normalized = preg_replace("/\r\n|\r|\n/", "\r\n", $rawMessage);
+        $bytes      = strlen($normalized);
+        $flagList   = $flags === [] ? '' : ' (' . implode(' ', $flags) . ')';
+        $folderArg  = '"' . addcslashes($folder, '"\\') . '"';
+        $tag        = $this->nextTag();
+
+        fwrite($this->stream, "{$tag} APPEND {$folderArg}{$flagList} {{$bytes}}\r\n");
+
+        $line = $this->readline();
+        if ($line === null || !str_starts_with($line, '+')) {
+            return -1;
+        }
+
+        fwrite($this->stream, $normalized . "\r\n");
+
+        $uid = 0;
+        while (true) {
+            $resp = $this->readResponse();
+            if ($resp === null) {
+                return -1;
+            }
+            if (str_starts_with($resp, "{$tag} ")) {
+                if (!str_starts_with($resp, "{$tag} OK")) {
+                    return -1;
+                }
+                // Dovecot / RFC 4315: TAG OK [APPENDUID uidvalidity uid] ...
+                if (preg_match('/\[APPENDUID \d+ (\d+)\]/i', $resp, $m)) {
+                    $uid = (int) $m[1];
+                }
+                break;
+            }
+        }
+
+        return $uid;
+    }
+
+    /**
      * Rename an existing IMAP mailbox.
      */
     public function renameFolder(string $from, string $to): bool

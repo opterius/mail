@@ -30,6 +30,55 @@
          toSug:   [],
          ccSug:   [],
          bccSug:  [],
+         draftUid:    {{ (int)($draftUid ?? 0) }},
+         draftFolder: {{ Js::from($draftFolder ?? '') }},
+         draftStatus: '',
+         draftTimer:  null,
+         csrfToken:   {{ Js::from(csrf_token()) }},
+         draftUrl:    {{ Js::from(route('compose.draft')) }},
+
+         init() { this.scheduleDraft(); },
+
+         scheduleDraft() {
+             clearTimeout(this.draftTimer);
+             this.draftTimer = setTimeout(() => this.saveDraft(), 60000);
+         },
+
+         resetDraftTimer() {
+             this.draftStatus = '';
+             this.scheduleDraft();
+         },
+
+         async saveDraft() {
+             this.draftStatus = 'saving';
+             const fd = new FormData();
+             const g  = (id) => (document.getElementById(id)?.value ?? '');
+             fd.append('to',      g('to'));
+             fd.append('cc',      g('cc'));
+             fd.append('bcc',     g('bcc'));
+             fd.append('subject', g('subject'));
+             fd.append('body',    g('body'));
+             if (this.draftUid > 0)       fd.append('draft_uid',    this.draftUid);
+             if (this.draftFolder !== '')  fd.append('draft_folder', this.draftFolder);
+             try {
+                 const r    = await fetch(this.draftUrl, {
+                     method: 'POST',
+                     headers: { 'X-CSRF-TOKEN': this.csrfToken, 'Accept': 'application/json' },
+                     body: fd,
+                 });
+                 const json = await r.json();
+                 if (json.ok) {
+                     if (json.uid > 0)       this.draftUid    = json.uid;
+                     if (json.folder !== '') this.draftFolder = json.folder;
+                     this.draftStatus = 'saved';
+                     setTimeout(() => { if (this.draftStatus === 'saved') this.draftStatus = ''; }, 3000);
+                 } else {
+                     this.draftStatus = 'error';
+                 }
+             } catch { this.draftStatus = 'error'; }
+             this.scheduleDraft();
+         },
+
          async suggest(field, val) {
              const last = val.split(',').pop().trim();
              if (last.length < 2) { this[field + 'Sug'] = []; return; }
@@ -49,7 +98,8 @@
              this[field + 'Sug'] = [];
              el.focus();
          }
-     }">
+     }"
+     @keydown.window.debounce.2000ms="resetDraftTimer()">
 
     {{-- Toolbar --}}
     <div class="flex items-center gap-2 px-6 py-3 border-b border-gray-100 bg-white sticky top-0 z-10">
@@ -61,6 +111,32 @@
             {{ $mode === 'compose' ? 'Inbox' : 'Back' }}
         </a>
         <span class="text-sm font-medium text-gray-700 ml-1">{{ $pageTitle }}</span>
+
+        {{-- Draft save status indicator --}}
+        <div class="ml-auto flex items-center gap-2">
+            <span x-show="draftStatus === 'saving'" x-cloak
+                  class="text-xs text-gray-400 flex items-center gap-1">
+                <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                Saving…
+            </span>
+            <span x-show="draftStatus === 'saved'" x-cloak
+                  class="text-xs text-green-600 flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                Draft saved
+            </span>
+            <span x-show="draftStatus === 'error'" x-cloak
+                  class="text-xs text-red-500">Could not save draft</span>
+
+            <button type="button" @click="saveDraft()"
+                    class="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 transition-colors">
+                Save draft
+            </button>
+        </div>
     </div>
 
     {{-- Send error --}}
@@ -71,7 +147,7 @@
     @endif
 
     {{-- Compose form --}}
-    <form method="POST" action="{{ route('compose.send') }}" enctype="multipart/form-data"
+    <form id="compose-form" method="POST" action="{{ route('compose.send') }}" enctype="multipart/form-data"
           class="flex flex-col flex-1 min-h-0"
           x-data="{
               attachFiles: [],
@@ -96,6 +172,9 @@
               }
           }">
         @csrf
+        {{-- Draft tracking — values kept in sync by Alpine on the outer div --}}
+        <input type="hidden" name="draft_uid"    :value="draftUid">
+        <input type="hidden" name="draft_folder" :value="draftFolder">
 
         {{-- Header fields --}}
         <div class="px-6 pt-5 pb-2 space-y-0 divide-y divide-gray-100 border-b border-gray-100">
