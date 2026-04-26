@@ -76,7 +76,7 @@
     $moveUrl = route('message.move', ['folder' => rawurlencode($message['folder']), 'uid' => $message['uid']]);
 @endphp
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full" x-data="{ replyOpen: false }">
 
     {{-- Toolbar --}}
     <div class="flex items-center gap-2 px-6 py-3 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 sticky top-0 z-10">
@@ -88,7 +88,7 @@
             Back
         </a>
 
-        <div class="flex items-center gap-1 ml-auto" x-data="{ replyOpen: false }">
+        <div class="flex items-center gap-1 ml-auto">
             {{-- Reply (inline) --}}
             <button @click="replyOpen = !replyOpen; $nextTick(() => replyOpen && document.getElementById('inline-reply-editor')?.focus())"
                     :class="replyOpen ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'"

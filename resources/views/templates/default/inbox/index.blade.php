@@ -318,7 +318,7 @@
                                 seen: {{ $tm['seen'] ? 'true' : 'false' }},
                                 deleted: false,
                                 toggleFlag() {
-                                    fetch({{ Js::from($tfl) }}, { method:'POST', headers:{'X-CSRF-TOKEN':{{ Js::from(csrf_token()) }},'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({flag:'\\\\Flagged',add:!this.flagged}) }).then(()=>{ this.flagged=!this.flagged; });
+                                    fetch({{ Js::from($tfl) }}, { method:'POST', headers:{'X-CSRF-TOKEN':{{ Js::from(csrf_token()) }},'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({flag:'\\Flagged',add:!this.flagged}) }).then(r=>{ if(r.ok) this.flagged=!this.flagged; });
                                 },
                                 deleteMsg() {
                                     fetch({{ Js::from($tdl) }}, { method:'DELETE', headers:{'X-CSRF-TOKEN':{{ Js::from(csrf_token()) }},'Accept':'application/json'} }).then(r=>{ if(r.ok) this.deleted=true; });
@@ -366,10 +366,10 @@
                         seen: {{ $isSeen ? 'true' : 'false' }},
                         deleted: false,
                         toggleFlag() {
-                            fetch({{ Js::from($flagUrl) }}, { method:'POST', headers:{'X-CSRF-TOKEN':{{ Js::from(csrf_token()) }},'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({flag:'\\\\Flagged',add:!this.flagged}) }).then(()=>{ this.flagged=!this.flagged; });
+                            fetch({{ Js::from($flagUrl) }}, { method:'POST', headers:{'X-CSRF-TOKEN':{{ Js::from(csrf_token()) }},'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({flag:'\\Flagged',add:!this.flagged}) }).then(r=>{ if(r.ok) this.flagged=!this.flagged; });
                         },
                         toggleSeen() {
-                            fetch({{ Js::from($flagUrl) }}, { method:'POST', headers:{'X-CSRF-TOKEN':{{ Js::from(csrf_token()) }},'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({flag:'\\\\Seen',add:!this.seen}) }).then(()=>{ this.seen=!this.seen; });
+                            fetch({{ Js::from($flagUrl) }}, { method:'POST', headers:{'X-CSRF-TOKEN':{{ Js::from(csrf_token()) }},'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({flag:'\\Seen',add:!this.seen}) }).then(r=>{ if(r.ok) this.seen=!this.seen; });
                         },
                         deleteMsg() {
                             fetch({{ Js::from($destroyUrl) }}, { method:'DELETE', headers:{'X-CSRF-TOKEN':{{ Js::from(csrf_token()) }},'Accept':'application/json'} }).then(r=>{ if(r.ok) this.deleted=true; });
