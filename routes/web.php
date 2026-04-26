@@ -22,6 +22,7 @@
  */
 
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\BulkMessageController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ComposeController;
 use App\Http\Controllers\ContactController;
@@ -112,6 +113,9 @@ Route::middleware('imap.auth')->group(function () {
     Route::post('/folders',   [FolderController::class, 'store'])->name('folders.store');
     Route::put('/folders',    [FolderController::class, 'update'])->name('folders.update');
     Route::delete('/folders', [FolderController::class, 'destroy'])->name('folders.destroy');
+
+    // Bulk message actions (delete, read, unread, flag, move)
+    Route::post('/bulk', BulkMessageController::class)->name('messages.bulk');
 
     // Real-time new mail polling (browser calls every 45 s)
     Route::get('/api/check-new', CheckNewMailController::class)->name('api.check-new');

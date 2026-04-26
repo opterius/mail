@@ -92,20 +92,69 @@ class MessageController extends Controller
 
     public function destroy(Request $request, string $folder, string $uid): mixed
     {
-        // Phase 2
-        return redirect()->route('inbox');
+        $this->imapAction(function (ImapConnection $imap) use ($folder, $uid) {
+            $imap->selectFolder($folder);
+            $imap->deleteMessages((string)(int)$uid);
+        });
+
+        $back = strtoupper($folder) === 'INBOX'
+            ? route('inbox')
+            : route('folder', ['folder' => rawurlencode($folder)]);
+
+        return $request->expectsJson()
+            ? response()->json(['ok' => true])
+            : redirect($back);
     }
 
     public function move(Request $request, string $folder, string $uid): mixed
     {
-        // Phase 2
+        $target = $request->input('target');
+        if (!$target) {
+            return response()->json(['error' => 'target required'], 422);
+        }
+
+        $this->imapAction(function (ImapConnection $imap) use ($folder, $uid, $target) {
+            $imap->selectFolder($folder);
+            $imap->moveMessages((string)(int)$uid, $target);
+        });
+
         return response()->json(['ok' => true]);
     }
 
     public function flag(Request $request, string $folder, string $uid): mixed
     {
-        // Phase 2
+        $flag = $request->input('flag', '\\Flagged');
+        $add  = (bool) $request->input('add', true);
+
+        $this->imapAction(function (ImapConnection $imap) use ($folder, $uid, $flag, $add) {
+            $imap->selectFolder($folder);
+            $imap->storeFlags((string)(int)$uid, $flag, $add);
+        });
+
         return response()->json(['ok' => true]);
+    }
+
+    // ------------------------------------------------------------------
+
+    private function imapAction(callable $fn): void
+    {
+        /** @var \App\Auth\ImapGuard $guard */
+        $guard = auth('web');
+        $imap  = new ImapConnection();
+        try {
+            $imap->connect(
+                host:         config('imap.host'),
+                port:         config('imap.port'),
+                encryption:   config('imap.encryption'),
+                validateCert: config('imap.validate_cert', false),
+                timeout:      config('imap.timeout', 10),
+            );
+            $imap->login($guard->getImapLogin(), $guard->getImapPassword());
+            $fn($imap);
+            $imap->logout();
+        } catch (\Throwable) {
+            $imap->close();
+        }
     }
 
     // ------------------------------------------------------------------

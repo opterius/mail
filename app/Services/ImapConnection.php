@@ -316,6 +316,37 @@ class ImapConnection
     }
 
     /**
+     * Add or remove a flag on one or more UIDs.
+     * $uidSet is a comma-separated UID list, e.g. "123,456,789".
+     */
+    public function storeFlags(string $uidSet, string $flag, bool $add): void
+    {
+        $op = $add ? '+FLAGS' : '-FLAGS';
+        $this->command("UID STORE {$uidSet} {$op} ({$flag})");
+    }
+
+    /**
+     * Mark UIDs as deleted and expunge them from the selected folder.
+     */
+    public function deleteMessages(string $uidSet): void
+    {
+        $this->command("UID STORE {$uidSet} +FLAGS (\\Deleted)");
+        $this->command("EXPUNGE");
+    }
+
+    /**
+     * Copy UIDs to $targetFolder then delete from the current folder.
+     * Folder must already be selected.
+     */
+    public function moveMessages(string $uidSet, string $targetFolder): void
+    {
+        $t = '"' . addcslashes($targetFolder, '"\\') . '"';
+        $this->command("UID COPY {$uidSet} {$t}");
+        $this->command("UID STORE {$uidSet} +FLAGS (\\Deleted)");
+        $this->command("EXPUNGE");
+    }
+
+    /**
      * Fetch message headers for a sequence range (e.g. "101:150").
      * Must call selectFolder() first.
      *

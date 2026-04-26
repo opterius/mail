@@ -21,16 +21,74 @@
         'U' => '#ec4899','V' => '#6366f1','W' => '#f43f5e','X' => '#06b6d4',
         'Y' => '#84cc16','Z' => '#f97316',
     ];
+
+    // Folder list for the "Move to" dropdown (exclude current)
+    $moveFolders = collect($folders ?? [])
+        ->filter(fn($f) => $f['name'] !== $currentFolder)
+        ->values();
 @endphp
 
 @section('title', $folderLabel)
 
 @section('content')
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full"
+     x-data="{
+        selected: new Set(),
+        allUids: {{ json_encode(array_column($messages ?? [], 'uid')) }},
+        toggle(uid) {
+            if (this.selected.has(uid)) { this.selected.delete(uid); }
+            else { this.selected.add(uid); }
+            this.selected = new Set(this.selected);
+        },
+        toggleAll() {
+            if (this.selected.size === this.allUids.length) {
+                this.selected = new Set();
+            } else {
+                this.selected = new Set(this.allUids);
+            }
+        },
+        isAllSelected() { return this.allUids.length > 0 && this.selected.size === this.allUids.length; },
+        isSomeSelected() { return this.selected.size > 0 && this.selected.size < this.allUids.length; },
+        submitBulk(action, target) {
+            if (this.selected.size === 0) return;
+            var form = document.getElementById('bulk-form');
+            form.querySelector('[name=action]').value = action;
+            form.querySelector('[name=target]').value = target || '';
+            // Rebuild uid inputs
+            form.querySelectorAll('[name=\'uids[]\']').forEach(el => el.remove());
+            this.selected.forEach(uid => {
+                var inp = document.createElement('input');
+                inp.type = 'hidden'; inp.name = 'uids[]'; inp.value = uid;
+                form.appendChild(inp);
+            });
+            form.submit();
+        }
+     }">
 
-    {{-- Toolbar --}}
+    {{-- Hidden bulk form --}}
+    <form id="bulk-form" method="POST" action="{{ route('messages.bulk') }}" class="hidden">
+        @csrf
+        <input type="hidden" name="folder" value="{{ $currentFolder }}">
+        <input type="hidden" name="action" value="">
+        <input type="hidden" name="target" value="">
+        <input type="hidden" name="page"   value="{{ $page ?? 1 }}">
+    </form>
+
+    {{-- ---------------------------------------------------------------- --}}
+    {{-- Toolbar                                                           --}}
+    {{-- ---------------------------------------------------------------- --}}
     <div class="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-10">
         <div class="flex items-center gap-3">
+            {{-- Select-all checkbox --}}
+            @if(!empty($messages))
+            <label class="flex items-center cursor-pointer">
+                <input type="checkbox"
+                       :checked="isAllSelected()"
+                       :indeterminate="isSomeSelected()"
+                       @change="toggleAll()"
+                       class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-orange-500 focus:ring-orange-400 cursor-pointer">
+            </label>
+            @endif
             <h1 class="text-base font-bold text-gray-900 dark:text-white">{{ $folderLabel }}</h1>
             @if(($total ?? 0) > 0)
                 <span class="text-sm text-gray-400 dark:text-gray-500">
@@ -42,7 +100,7 @@
             @endif
         </div>
         <div class="flex items-center gap-2">
-            {{-- Inline search (desktop) --}}
+            {{-- Inline search --}}
             <form method="GET" action="{{ route('search') }}" class="hidden sm:block">
                 <div class="relative">
                     <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
@@ -50,9 +108,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
                     </svg>
-                    <input name="q" type="search"
-                           placeholder="Search…"
-                           value="{{ request('q') }}"
+                    <input name="q" type="search" placeholder="Search…" value="{{ request('q') }}"
                            class="pl-9 pr-4 py-2 text-sm bg-gray-100 dark:bg-gray-800 border border-transparent focus:border-orange-400 focus:bg-white dark:focus:bg-gray-700 rounded-xl outline-none transition-colors w-52 text-gray-800 dark:text-gray-200 placeholder-gray-400">
                 </div>
             </form>
@@ -66,7 +122,84 @@
         </div>
     </div>
 
-    {{-- Error state --}}
+    {{-- ---------------------------------------------------------------- --}}
+    {{-- Bulk action bar (visible when any selected)                       --}}
+    {{-- ---------------------------------------------------------------- --}}
+    <div x-show="selected.size > 0" x-cloak
+         class="flex items-center gap-2 px-5 py-2.5 bg-orange-50 dark:bg-orange-900/20 border-b border-orange-100 dark:border-orange-900/40 flex-wrap">
+
+        <span class="text-sm font-semibold text-orange-700 dark:text-orange-300 mr-1"
+              x-text="selected.size + ' selected'"></span>
+
+        <button @click="submitBulk('read')"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 19V5a2 2 0 012-2h14a2 2 0 012 2v14"/>
+            </svg>
+            Mark read
+        </button>
+
+        <button @click="submitBulk('unread')"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                <circle cx="10" cy="10" r="4"/>
+            </svg>
+            Mark unread
+        </button>
+
+        <button @click="submitBulk('flag')"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors">
+            <svg class="w-3.5 h-3.5 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+            </svg>
+            Flag
+        </button>
+
+        @if($moveFolders->isNotEmpty())
+        <div x-data="{ open: false }" class="relative">
+            <button @click="open = !open"
+                    class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                </svg>
+                Move to
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </button>
+            <div x-show="open" x-cloak @click.outside="open = false"
+                 class="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-20 py-1 max-h-60 overflow-y-auto">
+                @foreach($moveFolders as $mf)
+                    <button @click="submitBulk('move', {{ json_encode($mf['name']) }}); open = false"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        {{ $mf['name'] === 'INBOX' ? 'Inbox' : $mf['name'] }}
+                    </button>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+        <button @click="submitBulk('delete')"
+                class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 transition-colors ml-auto">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+            Delete
+        </button>
+
+        <button @click="selected = new Set()"
+                class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-white dark:hover:bg-gray-800 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+
+    {{-- ---------------------------------------------------------------- --}}
+    {{-- Error state                                                        --}}
+    {{-- ---------------------------------------------------------------- --}}
     @if(!empty($error))
         <div class="flex flex-col items-center justify-center flex-1 px-6 py-20 text-center">
             <div class="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4">
@@ -91,29 +224,40 @@
             <p class="text-base font-semibold text-gray-600 dark:text-gray-400">No messages in {{ $folderLabel }}</p>
         </div>
 
-    {{-- Message list --}}
+    {{-- ---------------------------------------------------------------- --}}
+    {{-- Message list                                                       --}}
+    {{-- ---------------------------------------------------------------- --}}
     @else
         <ul class="divide-y divide-gray-100 dark:divide-gray-800">
             @foreach($messages as $msg)
                 @php
-                    $fromName  = $msg['from']['name'] ?: $msg['from']['email'];
-                    $initial   = mb_strtoupper(mb_substr($fromName, 0, 1, 'UTF-8'), 'UTF-8');
-                    $avatarBg  = $avatarColors[$initial] ?? '#6366f1';
-                    $href      = route('message.show', [
+                    $fromName = $msg['from']['name'] ?: $msg['from']['email'];
+                    $initial  = mb_strtoupper(mb_substr($fromName, 0, 1, 'UTF-8'), 'UTF-8');
+                    $avatarBg = $avatarColors[$initial] ?? '#6366f1';
+                    $href     = route('message.show', [
                         'folder' => rawurlencode($currentFolder),
                         'uid'    => $msg['uid'],
                     ]);
-                    $isUnread  = !$msg['seen'];
+                    $isUnread = !$msg['seen'];
+                    $uid      = $msg['uid'];
                 @endphp
                 <li>
-                    <a href="{{ $href }}"
-                       class="flex items-center gap-4 px-5 py-4 transition-colors group
-                              {{ $isUnread
-                                  ? 'bg-orange-50/40 dark:bg-orange-900/10 hover:bg-orange-50 dark:hover:bg-orange-900/20'
-                                  : 'hover:bg-gray-50 dark:hover:bg-gray-800/60' }}">
+                    <div class="flex items-center gap-4 px-5 py-4 transition-colors group
+                                {{ $isUnread
+                                    ? 'bg-orange-50/40 dark:bg-orange-900/10 hover:bg-orange-50 dark:hover:bg-orange-900/20'
+                                    : 'hover:bg-gray-50 dark:hover:bg-gray-800/60' }}"
+                         :class="selected.has({{ $uid }}) ? 'bg-orange-50 dark:bg-orange-900/20' : ''">
 
-                        {{-- Unread indicator --}}
-                        <div class="flex-shrink-0 w-2 flex items-center justify-center">
+                        {{-- Checkbox --}}
+                        <label class="flex-shrink-0 flex items-center cursor-pointer" @click.stop>
+                            <input type="checkbox"
+                                   :checked="selected.has({{ $uid }})"
+                                   @change="toggle({{ $uid }})"
+                                   class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-orange-500 focus:ring-orange-400 cursor-pointer">
+                        </label>
+
+                        {{-- Unread dot --}}
+                        <div class="flex-shrink-0 w-2">
                             @if($isUnread)
                                 <div class="w-2 h-2 rounded-full bg-orange-500"></div>
                             @endif
@@ -126,52 +270,50 @@
                             {{ $initial }}
                         </div>
 
-                        {{-- Content --}}
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between gap-3 mb-0.5">
-                                <span class="text-sm truncate
-                                             {{ $isUnread
-                                                 ? 'font-bold text-gray-900 dark:text-white'
-                                                 : 'font-medium text-gray-700 dark:text-gray-300' }}">
-                                    {{ $fromName }}
-                                </span>
-                                <span class="flex-shrink-0 text-xs {{ $isUnread ? 'text-gray-600 dark:text-gray-400 font-medium' : 'text-gray-400 dark:text-gray-500' }}">
-                                    {{ $msg['date_formatted'] ?? '' }}
-                                </span>
+                        {{-- Content — clicking navigates to message --}}
+                        <a href="{{ $href }}" class="flex-1 min-w-0 flex items-center gap-3">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between gap-3 mb-0.5">
+                                    <span class="text-sm truncate
+                                                 {{ $isUnread ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300' }}">
+                                        {{ $fromName }}
+                                    </span>
+                                    <span class="flex-shrink-0 text-xs {{ $isUnread ? 'text-gray-600 dark:text-gray-400 font-medium' : 'text-gray-400 dark:text-gray-500' }}">
+                                        {{ $msg['date_formatted'] ?? '' }}
+                                    </span>
+                                </div>
+                                <p class="text-sm truncate
+                                          {{ $isUnread ? 'font-semibold text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400' }}">
+                                    {{ $msg['subject'] ?: '(no subject)' }}
+                                </p>
                             </div>
-                            <p class="text-sm truncate
-                                      {{ $isUnread
-                                          ? 'font-semibold text-gray-800 dark:text-gray-200'
-                                          : 'text-gray-600 dark:text-gray-400' }}">
-                                {{ $msg['subject'] ?: '(no subject)' }}
-                            </p>
-                        </div>
 
-                        {{-- Flagged star --}}
-                        @if($msg['flagged'])
-                            <div class="flex-shrink-0">
-                                <svg class="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                                </svg>
-                            </div>
-                        @endif
+                            {{-- Flagged star --}}
+                            @if($msg['flagged'])
+                                <div class="flex-shrink-0">
+                                    <svg class="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                    </svg>
+                                </div>
+                            @endif
+                        </a>
 
-                    </a>
+                    </div>
                 </li>
             @endforeach
         </ul>
 
+        {{-- ---------------------------------------------------------------- --}}
+        {{-- Pagination                                                         --}}
+        {{-- ---------------------------------------------------------------- --}}
         @if(($totalPages ?? 1) > 1)
             @php
                 $page       = $page ?? 1;
                 $totalPages = $totalPages ?? 1;
-                $folder     = $currentFolder;
-                $baseUrl    = $folder === 'INBOX'
+                $baseUrl    = $currentFolder === 'INBOX'
                     ? route('inbox')
-                    : route('folder', ['folder' => rawurlencode($folder)]);
+                    : route('folder', ['folder' => rawurlencode($currentFolder)]);
                 $pageUrl    = fn(int $p) => $baseUrl . '?page=' . $p;
-
-                // Show up to 7 page links, always include first/last, ellipsis in between
                 $window = 2;
                 $pages  = [];
                 for ($i = 1; $i <= $totalPages; $i++) {
@@ -181,8 +323,6 @@
                 }
             @endphp
             <div class="flex items-center justify-between px-5 py-3.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
-
-                {{-- Prev --}}
                 @if($page > 1)
                     <a href="{{ $pageUrl($page - 1) }}"
                        class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors">
@@ -195,7 +335,6 @@
                     <div></div>
                 @endif
 
-                {{-- Page numbers --}}
                 <div class="flex items-center gap-1">
                     @php $prev = null; @endphp
                     @foreach($pages as $p)
@@ -213,7 +352,6 @@
                     @endforeach
                 </div>
 
-                {{-- Next --}}
                 @if($page < $totalPages)
                     <a href="{{ $pageUrl($page + 1) }}"
                        class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors">
@@ -225,7 +363,6 @@
                 @else
                     <div></div>
                 @endif
-
             </div>
         @endif
     @endif
