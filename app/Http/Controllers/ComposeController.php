@@ -58,12 +58,15 @@ class ComposeController extends Controller
                     fn($a) => $a['name'] ? "\"{$a['name']}\" <{$a['email']}>" : $a['email'],
                     $draft['cc'],
                 ));
+                $body = $draft['body_html'] !== ''
+                    ? $draft['body_html']
+                    : $this->toHtml($draft['body_text']);
                 return $this->showCompose([
                     'mode'         => 'compose',
                     'to'           => $to,
                     'cc'           => $cc,
                     'subject'      => $draft['subject'] !== '(no subject)' ? $draft['subject'] : '',
-                    'body'         => $draft['body_text'],
+                    'body'         => $body,
                     'draftUid'     => $draftUid,
                     'draftFolder'  => $draftFolder,
                 ]);
@@ -103,7 +106,7 @@ class ComposeController extends Controller
             'mode'           => 'reply',
             'to'             => $replyTo,
             'subject'        => $subject,
-            'body'           => $this->quoteForReply($original),
+            'body'           => $this->toHtml($this->quoteForReply($original)),
             'cc'             => '',
             'originalFolder' => $folder,
             'originalUid'    => (int) $uid,
@@ -129,7 +132,7 @@ class ComposeController extends Controller
             'mode'           => 'forward',
             'to'             => '',
             'subject'        => $subject,
-            'body'           => $this->quoteForForward($original),
+            'body'           => $this->toHtml($this->quoteForForward($original)),
             'cc'             => '',
             'originalFolder' => $folder,
             'originalUid'    => (int) $uid,
@@ -189,7 +192,7 @@ class ComposeController extends Controller
                 password:     $password,
                 to:           $data['to'],
                 subject:      $data['subject'] ?? '',
-                bodyText:     $data['body'] ?? '',
+                bodyHtml:     $data['body'] ?? '',
                 cc:           $data['cc'] ?? '',
                 bcc:          $data['bcc'] ?? '',
                 authUsername: $guard->getImapLogin(),
@@ -462,10 +465,14 @@ class ComposeController extends Controller
         string $subject,
         string $body,
     ): string {
+        $htmlBody  = $body !== '' ? $body : '<p><br></p>';
+        $plainBody = strip_tags(str_replace(['</p>', '<br>', '<br/>', '<br />'], "\n", $htmlBody));
+
         $email = (new Email())
             ->from(new Address($fromEmail, $fromName ?: $fromEmail))
             ->subject($subject ?: '(no subject)')
-            ->text($body);
+            ->html($htmlBody)
+            ->text(trim($plainBody));
 
         foreach ($this->splitAddresses($to)  as $a) { $email->addTo($a); }
         foreach ($this->splitAddresses($cc)  as $a) { $email->addCc($a); }
@@ -628,6 +635,43 @@ class ComposeController extends Controller
         }
 
         return $parsed;
+    }
+
+    /**
+     * Convert a plain-text body to simple HTML suitable for the rich-text editor.
+     * Lines starting with "> " become <blockquote> content.
+     * Already-HTML strings (start with a tag) are returned unchanged.
+     */
+    private function toHtml(string $text): string
+    {
+        if ($text === '') {
+            return '';
+        }
+        if (preg_match('/^\s*</s', $text)) {
+            return $text;
+        }
+
+        $lines     = explode("\n", $text);
+        $out       = '';
+        $quoteLines = [];
+
+        foreach ($lines as $line) {
+            if (str_starts_with($line, '> ') || $line === '>') {
+                $quoteLines[] = htmlspecialchars(substr($line, 2), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            } else {
+                if ($quoteLines !== []) {
+                    $out .= '<blockquote>' . implode('<br>', $quoteLines) . '</blockquote>';
+                    $quoteLines = [];
+                }
+                $escaped = htmlspecialchars($line, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $out .= $escaped !== '' ? '<p>' . $escaped . '</p>' : '<p><br></p>';
+            }
+        }
+        if ($quoteLines !== []) {
+            $out .= '<blockquote>' . implode('<br>', $quoteLines) . '</blockquote>';
+        }
+
+        return $out;
     }
 
     private function quoteForReply(array $original): string

@@ -23,6 +23,48 @@
 @section('title', $pageTitle)
 
 @section('content')
+{{-- Trix rich-text editor --}}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/trix@2/dist/trix.css">
+<script src="https://cdn.jsdelivr.net/npm/trix@2/dist/trix.umd.min.js"></script>
+<style>
+    trix-editor {
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 0.9375rem;
+        line-height: 1.6;
+        border: none !important;
+        padding: 1rem 1.5rem;
+        outline: none;
+        min-height: 320px;
+        flex: 1;
+        color: #1f2937;
+        background: transparent;
+    }
+    trix-toolbar .trix-button-group {
+        border-color: #e5e7eb;
+        border-radius: 0.5rem;
+        margin: 0 0.25rem;
+    }
+    trix-toolbar .trix-button {
+        border: none;
+        color: #6b7280;
+        padding: 0 0.5rem;
+    }
+    trix-toolbar .trix-button:hover { color: #111827; background: #f3f4f6; }
+    trix-toolbar .trix-button.trix-active { color: #f97316; background: #fff7ed; }
+    trix-toolbar .trix-button-group--file-tools { display: none; }
+    trix-toolbar { padding: 0.5rem 1rem; border-bottom: 1px solid #f3f4f6; background: #fff; }
+    .trix-content blockquote {
+        border-left: 3px solid #d1d5db;
+        margin: 0.25rem 0;
+        padding-left: 0.75rem;
+        color: #6b7280;
+    }
+    .dark trix-editor { color: #e5e7eb; }
+    .dark trix-toolbar { background: #111827; border-color: #374151; }
+    .dark trix-toolbar .trix-button { color: #9ca3af; }
+    .dark trix-toolbar .trix-button:hover { color: #f3f4f6; background: #1f2937; }
+    .dark trix-toolbar .trix-button-group { border-color: #374151; }
+</style>
 <div class="flex flex-col h-full"
      x-data="{
          showCc:  {{ $cc !== '' ? 'true' : 'false' }},
@@ -309,13 +351,12 @@
 
         </div>
 
-        {{-- Body --}}
-        <div class="flex-1 flex flex-col px-6 pt-4 pb-4 min-h-0">
-            <textarea id="body"
-                      name="body"
-                      class="flex-1 w-full text-sm text-gray-800 leading-relaxed outline-none resize-none
-                             font-mono placeholder-gray-300 min-h-[320px]"
-                      placeholder="Write your message here…">{{ old('body', $body) }}</textarea>
+        {{-- Body (rich text editor) --}}
+        <input type="hidden" id="body" name="body" value="{{ old('body', $body) }}">
+        <div class="flex-1 flex flex-col min-h-0 overflow-hidden px-2 pb-2">
+            <trix-editor input="body"
+                         class="flex-1 overflow-y-auto"
+                         placeholder="Write your message here…"></trix-editor>
         </div>
 
         {{-- Attachments --}}
