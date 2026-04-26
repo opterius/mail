@@ -255,7 +255,7 @@
                     Attach files
                     <input type="file" id="attach-trigger" multiple class="hidden" @change="addFiles($event)">
                 </label>
-                <span class="text-xs text-gray-400">Max 25 MB per file</span>
+                <span class="text-xs text-gray-400">Max {{ config('smtp.max_attachment_mb', 25) }} MB per file</span>
             </div>
 
             {{-- Selected file chips --}}
