@@ -41,7 +41,7 @@ use Illuminate\Support\Facades\Route;
 // Admin guest routes (login, setup, 2FA)
 // ------------------------------------------------------------------
 
-Route::prefix('admin')->name('admin.')->group(function () {
+Route::prefix(config('mail-ui.admin_prefix', 'admin'))->name('admin.')->middleware('admin.ip')->group(function () {
 
     // First-run setup (only works when no admins exist)
     Route::get('/setup', [AuthController::class, 'showSetup'])->name('setup');

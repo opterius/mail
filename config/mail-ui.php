@@ -25,6 +25,14 @@ return [
     'template'   => env('MAIL_UI_TEMPLATE', 'default'),
     'admin_mode' => env('MAIL_ADMIN', false),
 
+    // Admin URL prefix. Change to something hard-to-guess for extra security.
+    // Example: MAIL_ADMIN_PREFIX=x9k2-panel → accessible at /x9k2-panel/login
+    'admin_prefix' => env('MAIL_ADMIN_PREFIX', 'admin'),
+
+    // IP allowlist for the admin area. Comma-separated. Empty = no restriction.
+    // Example: MAIL_ADMIN_IPS=1.2.3.4,5.6.7.8
+    'admin_allowed_ips' => array_filter(array_map('trim', explode(',', env('MAIL_ADMIN_IPS', '')))),
+
     // Panel SSO — token-based auto-login from Opterius Panel (or any trusted host).
     // Set PANEL_SSO_SECRET to the same value on the panel side.
     'sso_enabled' => env('PANEL_SSO_ENABLED', false),
