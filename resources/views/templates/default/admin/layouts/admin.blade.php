@@ -63,6 +63,7 @@
 
                 {{-- Always-visible items --}}
                 {!! $navItem('admin.dashboard', 'Dashboard') !!}
+                {!! $navItem('admin.accounts.index', 'Accounts') !!}
                 {!! $navItem('admin.groups.index', 'Groups') !!}
                 {!! $navItem('admin.logs.index', 'Logs') !!}
                 {!! $navItem('admin.settings.index', 'Settings') !!}
@@ -73,7 +74,6 @@
                         Mail Server
                     </p>
                     {!! $navItem('admin.domains.index', 'Domains') !!}
-                    {!! $navItem('admin.accounts.index', 'Accounts') !!}
                     {!! $navItem('admin.aliases.index', 'Aliases') !!}
                     {!! $navItem('admin.autoresponders.index', 'Autoresponders') !!}
                     {!! $navItem('admin.spam.index', 'Spam') !!}
