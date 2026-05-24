@@ -98,7 +98,7 @@
             <form :action="editId ? '{{ url('admin/groups') }}/' + editId : '{{ route('admin.groups.store') }}'"
                   method="POST" class="space-y-4">
                 @csrf
-                <input x-show="editId" type="hidden" name="_method" value="PUT">
+                <template x-if="editId"><input type="hidden" name="_method" value="PUT"></template>
 
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Group name <span class="text-red-500">*</span></label>
