@@ -37,13 +37,35 @@ class AccountController extends Controller
         $standaloneMode = !config('mail-ui.admin_mode');
 
         if ($standaloneMode) {
-            $query = \App\Models\UserSetting::with('group')->orderBy('email');
+            $allowedSorts = ['email', 'created_at', 'sent_24h', 'sent_7d', 'sent_30d', 'sent_90d'];
+            $sort = in_array($request->sort, $allowedSorts) ? $request->sort : 'email';
+            $dir  = $request->dir === 'asc' ? 'asc' : 'desc';
+
+            $query = \App\Models\UserSetting::with('group')
+                ->leftJoin('mail_send_log', 'user_settings.email', '=', 'mail_send_log.email')
+                ->selectRaw('user_settings.*,
+                    COUNT(CASE WHEN mail_send_log.status = "sent" AND mail_send_log.created_at >= ? THEN 1 END) as sent_24h,
+                    COUNT(CASE WHEN mail_send_log.status = "sent" AND mail_send_log.created_at >= ? THEN 1 END) as sent_7d,
+                    COUNT(CASE WHEN mail_send_log.status = "sent" AND mail_send_log.created_at >= ? THEN 1 END) as sent_30d,
+                    COUNT(CASE WHEN mail_send_log.status = "sent" AND mail_send_log.created_at >= ? THEN 1 END) as sent_90d',
+                    [now()->subDay(), now()->subDays(7), now()->subDays(30), now()->subDays(90)]
+                )
+                ->groupBy('user_settings.id')
+                ->orderBy($sort, $dir);
+
             if ($request->filled('search')) {
-                $query->where('email', 'like', '%' . $request->search . '%');
+                $query->where('user_settings.email', 'like', '%' . $request->search . '%');
             }
+            if ($request->filled('from')) {
+                $query->where('user_settings.created_at', '>=', $request->from);
+            }
+            if ($request->filled('to')) {
+                $query->where('user_settings.created_at', '<=', $request->to . ' 23:59:59');
+            }
+
             $accounts = $query->paginate(50)->withQueryString();
             $domains  = collect();
-            return view(mailView('admin.accounts.index'), compact('accounts', 'domains', 'standaloneMode'));
+            return view(mailView('admin.accounts.index'), compact('accounts', 'domains', 'standaloneMode', 'sort', 'dir'));
         }
 
         $query = MailAccount::with(['domain', 'group'])->orderBy('email');
@@ -53,8 +75,9 @@ class AccountController extends Controller
         $accounts       = $query->paginate(50)->withQueryString();
         $domains        = MailDomain::orderBy('domain')->pluck('domain');
         $standaloneMode = false;
+        $sort = 'email'; $dir = 'asc';
 
-        return view(mailView('admin.accounts.index'), compact('accounts', 'domains', 'standaloneMode'));
+        return view(mailView('admin.accounts.index'), compact('accounts', 'domains', 'standaloneMode', 'sort', 'dir'));
     }
 
     public function create()
