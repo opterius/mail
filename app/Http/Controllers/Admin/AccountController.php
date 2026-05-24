@@ -34,16 +34,27 @@ class AccountController extends Controller
 {
     public function index(Request $request)
     {
-        $query = MailAccount::with(['domain', 'group'])->orderBy('email');
+        $standaloneMode = !config('mail-ui.admin_mode');
 
+        if ($standaloneMode) {
+            $query = \App\Models\UserSetting::with('group')->orderBy('email');
+            if ($request->filled('search')) {
+                $query->where('email', 'like', '%' . $request->search . '%');
+            }
+            $accounts = $query->paginate(50)->withQueryString();
+            $domains  = collect();
+            return view(mailView('admin.accounts.index'), compact('accounts', 'domains', 'standaloneMode'));
+        }
+
+        $query = MailAccount::with(['domain', 'group'])->orderBy('email');
         if ($request->filled('domain')) {
             $query->whereHas('domain', fn($q) => $q->where('domain', $request->domain));
         }
+        $accounts       = $query->paginate(50)->withQueryString();
+        $domains        = MailDomain::orderBy('domain')->pluck('domain');
+        $standaloneMode = false;
 
-        $accounts = $query->paginate(50)->withQueryString();
-        $domains  = MailDomain::orderBy('domain')->pluck('domain');
-
-        return view(mailView('admin.accounts.index'), compact('accounts', 'domains'));
+        return view(mailView('admin.accounts.index'), compact('accounts', 'domains', 'standaloneMode'));
     }
 
     public function create()

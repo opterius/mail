@@ -24,6 +24,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\MailGroup;
 
 class UserSetting extends Model
 {
@@ -48,6 +50,11 @@ class UserSetting extends Model
         'per_page'              => 'integer',
         'notifications_enabled' => 'boolean',
     ];
+
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(MailGroup::class, 'group_id');
+    }
 
     /** Default values used when no row exists yet. */
     public static function defaults(): array
