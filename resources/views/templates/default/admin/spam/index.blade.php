@@ -29,7 +29,7 @@
             <div class="px-5 py-4 space-y-4">
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1.5">
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1.5">
                         Spam score threshold
                         <span class="text-gray-400 font-normal">(SpamAssassin default: 5.0)</span>
                     </label>
@@ -37,12 +37,12 @@
                         <input type="number" name="spam_score_threshold" step="0.1" min="0" max="20"
                                value="{{ old('spam_score_threshold', $settings['spam_score_threshold'] ?? '5.0') }}"
                                class="w-28 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                        <p class="text-xs text-gray-400">Messages scoring above this value are considered spam.</p>
+                        <p class="text-[13px] text-gray-400">Messages scoring above this value are considered spam.</p>
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-2">Action for spam messages</label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-2">Action for spam messages</label>
                     <div class="space-y-2">
                         @foreach([
                             'tag'         => ['Tag subject line', 'Deliver to inbox with subject prefix (e.g. [SPAM] original subject)'],
@@ -58,7 +58,7 @@
                                        class="mt-0.5 accent-orange-500">
                                 <div>
                                     <p class="text-sm font-medium text-gray-800">{{ $label }}</p>
-                                    <p class="text-xs text-gray-400 mt-0.5">{{ $desc }}</p>
+                                    <p class="text-[13px] text-gray-400 mt-0.5">{{ $desc }}</p>
                                 </div>
                             </label>
                         @endforeach
@@ -66,7 +66,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Subject prefix (tag mode only)</label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Subject prefix (tag mode only)</label>
                     <input type="text" name="spam_subject_prefix" maxlength="30"
                            value="{{ old('spam_subject_prefix', $settings['spam_subject_prefix'] ?? '[SPAM]') }}"
                            class="w-40 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
@@ -77,7 +77,7 @@
         </div>
 
         {{-- Info box --}}
-        <div class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-700 space-y-1">
+        <div class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-[13px] text-blue-700 space-y-1">
             <p class="font-semibold">Integration note</p>
             <p>These settings store your preferred thresholds and actions. For them to take effect, your MTA must pass the
             <code class="bg-blue-100 px-1 rounded">X-Spam-Score</code> header and be configured to call the appropriate action

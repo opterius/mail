@@ -36,13 +36,13 @@
             <form method="POST" action="{{ route('admin.dkim.generate') }}" class="flex items-end gap-3 flex-wrap">
                 @csrf
                 <div class="flex-1 min-w-40">
-                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Domain <span class="text-red-500">*</span></label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Domain <span class="text-red-500">*</span></label>
                     <input type="text" name="domain" required placeholder="example.com"
                            value="{{ old('domain') }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
                 </div>
                 <div class="w-36">
-                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Selector</label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Selector</label>
                     <input type="text" name="selector" placeholder="mail"
                            value="{{ old('selector', 'mail') }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
@@ -51,7 +51,7 @@
                         class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap">
                     Generate
                 </button>
-                <p class="w-full text-xs text-gray-400 -mt-1">
+                <p class="w-full text-[13px] text-gray-400 -mt-1">
                     Generating a key for an existing domain+selector will revoke and replace the previous key.
                 </p>
             </form>
@@ -70,44 +70,44 @@
                     <div class="px-5 py-4 flex items-center justify-between gap-4">
                         <div class="min-w-0">
                             <p class="font-semibold text-gray-900">{{ $key->domain }}</p>
-                            <p class="text-xs text-gray-400 mt-0.5">
+                            <p class="text-[13px] text-gray-400 mt-0.5">
                                 Selector: <span class="font-mono">{{ $key->selector }}</span>
                                 &middot; Generated {{ $key->created_at->diffForHumans() }}
                             </p>
                         </div>
                         <div class="flex items-center gap-3 flex-shrink-0">
                             <button @click="showKey = (showKey === {{ $key->id }} ? null : {{ $key->id }})"
-                                    class="text-xs text-orange-500 hover:text-orange-700 transition-colors">
+                                    class="text-[13px] text-orange-500 hover:text-orange-700 transition-colors">
                                 <span x-text="showKey === {{ $key->id }} ? 'Hide DNS record' : 'Show DNS record'">Show DNS record</span>
                             </button>
                             <form method="POST" action="{{ route('admin.dkim.destroy', ['dkim_key' => $key->id]) }}"
                                   onsubmit="return confirm('Delete DKIM key for {{ $key->selector }}._domainkey.{{ $key->domain }}?')">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="text-xs text-red-400 hover:text-red-600 transition-colors">Delete</button>
+                                <button type="submit" class="text-[13px] text-red-400 hover:text-red-600 transition-colors">Delete</button>
                             </form>
                         </div>
                     </div>
 
                     {{-- DNS record panel --}}
                     <div x-show="showKey === {{ $key->id }}" x-cloak class="border-t border-gray-100 px-5 py-4 bg-gray-50">
-                        <p class="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">DNS TXT record to publish</p>
+                        <p class="text-[13px] font-semibold text-gray-600 mb-2 uppercase tracking-wide">DNS TXT record to publish</p>
                         <div class="mb-3">
-                            <p class="text-xs text-gray-500 mb-1">Record name:</p>
+                            <p class="text-[13px] text-gray-500 mb-1">Record name:</p>
                             <div class="flex items-center gap-2">
-                                <code class="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono text-gray-800 break-all">{{ $key->dnsName() }}</code>
+                                <code class="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-[13px] font-mono text-gray-800 break-all">{{ $key->dnsName() }}</code>
                                 <button onclick="navigator.clipboard.writeText('{{ $key->dnsName() }}')"
-                                        class="flex-shrink-0 px-2.5 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs rounded-lg transition-colors">Copy</button>
+                                        class="flex-shrink-0 px-2.5 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-[13px] rounded-lg transition-colors">Copy</button>
                             </div>
                         </div>
                         <div>
-                            <p class="text-xs text-gray-500 mb-1">Record value (TXT):</p>
+                            <p class="text-[13px] text-gray-500 mb-1">Record value (TXT):</p>
                             <div class="flex items-start gap-2">
-                                <code class="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono text-gray-800 break-all leading-relaxed">{{ $key->dns_record }}</code>
+                                <code class="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-[13px] font-mono text-gray-800 break-all leading-relaxed">{{ $key->dns_record }}</code>
                                 <button onclick="navigator.clipboard.writeText({{ Js::from($key->dns_record) }})"
-                                        class="flex-shrink-0 mt-0 px-2.5 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs rounded-lg transition-colors">Copy</button>
+                                        class="flex-shrink-0 mt-0 px-2.5 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-[13px] rounded-lg transition-colors">Copy</button>
                             </div>
                         </div>
-                        <p class="text-xs text-gray-400 mt-3">
+                        <p class="text-[13px] text-gray-400 mt-3">
                             After publishing the DNS record, DKIM signing must be configured in your MTA (Postfix + OpenDKIM, or Dovecot LMTP).
                             DNS propagation can take up to 48 hours.
                         </p>

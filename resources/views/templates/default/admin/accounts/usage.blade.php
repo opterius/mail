@@ -21,7 +21,7 @@
             <p class="text-sm text-gray-400 mt-0.5">
                 Disk usage per mailbox.
                 @if(!config('mail.vhosts_path'))
-                    <span class="text-yellow-600">Set <code class="text-xs bg-gray-100 px-1 rounded">MAIL_VHOSTS_PATH</code> in .env to enable live disk usage.</span>
+                    <span class="text-yellow-600">Set <code class="text-[13px] bg-gray-100 px-1 rounded">MAIL_VHOSTS_PATH</code> in .env to enable live disk usage.</span>
                 @endif
             </p>
         </div>
@@ -58,7 +58,7 @@
         @if($over90 > 0 || $over70 > 0)
         <div class="flex gap-3 mb-4">
             @if($over90 > 0)
-            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold bg-red-50 text-red-700 border border-red-200">
                 <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                 </svg>
@@ -66,7 +66,7 @@
             </span>
             @endif
             @if($over70 > 0)
-            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">
                 ⚠ {{ $over70 }} account{{ $over70 !== 1 ? 's' : '' }} over 70%
             </span>
             @endif
@@ -77,27 +77,27 @@
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-gray-100 text-left">
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">
                             <a href="{{ usageSortUrl('email', $sort, $dir) }}" class="hover:text-gray-800 flex items-center gap-1">
                                 Email <span class="text-gray-400">{{ usageSortIcon('email', $sort, $dir) }}</span>
                             </a>
                         </th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">
                             <a href="{{ usageSortUrl('used_mb', $sort, $dir) }}" class="hover:text-gray-800 flex items-center gap-1">
                                 Used <span class="text-gray-400">{{ usageSortIcon('used_mb', $sort, $dir) }}</span>
                             </a>
                         </th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">
                             <a href="{{ usageSortUrl('quota_mb', $sort, $dir) }}" class="hover:text-gray-800 flex items-center gap-1">
                                 Quota <span class="text-gray-400">{{ usageSortIcon('quota_mb', $sort, $dir) }}</span>
                             </a>
                         </th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-48">
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide w-48">
                             <a href="{{ usageSortUrl('pct', $sort, $dir) }}" class="hover:text-gray-800 flex items-center gap-1">
                                 Usage <span class="text-gray-400">{{ usageSortIcon('pct', $sort, $dir) }}</span>
                             </a>
                         </th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
@@ -138,19 +138,19 @@
                                         <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                                             <div class="{{ $barColor }} h-1.5 rounded-full" style="width: {{ $pct }}%"></div>
                                         </div>
-                                        <span class="text-xs text-gray-500 w-9 text-right">{{ $pct }}%</span>
+                                        <span class="text-[13px] text-gray-500 w-9 text-right">{{ $pct }}%</span>
                                     </div>
                                 @elseif($usedMb !== null)
-                                    <span class="text-xs text-gray-400">No quota set</span>
+                                    <span class="text-[13px] text-gray-400">No quota set</span>
                                 @else
-                                    <span class="text-xs text-gray-300">—</span>
+                                    <span class="text-[13px] text-gray-300">—</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3">
                                 @if($account->is_active)
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">Active</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-green-50 text-green-700">Active</span>
                                 @else
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Suspended</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-gray-100 text-gray-500">Suspended</span>
                                 @endif
                             </td>
                         </tr>
@@ -158,7 +158,7 @@
                 </tbody>
             </table>
         </div>
-        <p class="text-xs text-gray-400 mt-3">
+        <p class="text-[13px] text-gray-400 mt-3">
             {{ $rows->count() }} account{{ $rows->count() !== 1 ? 's' : '' }}.
             @if(config('mail.vhosts_path'))
                 Disk usage read from <code class="bg-gray-100 px-1 rounded">{{ config('mail.vhosts_path') }}</code> via <code class="bg-gray-100 px-1 rounded">du -sm</code>.

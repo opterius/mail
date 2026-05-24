@@ -39,7 +39,7 @@
     <div class="mb-6">
         <h2 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
             Pending
-            <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $pending->isEmpty() ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-700' }}">
+            <span class="px-2 py-0.5 rounded-full text-[13px] font-medium {{ $pending->isEmpty() ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-700' }}">
                 {{ $pending->count() }}
             </span>
         </h2>
@@ -53,10 +53,10 @@
                 <table class="w-full">
                     <thead>
                         <tr class="border-b border-gray-100 text-left">
-                            <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Job</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Queue</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Attempts</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Queued</th>
+                            <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Job</th>
+                            <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Queue</th>
+                            <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Attempts</th>
+                            <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Queued</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
@@ -65,7 +65,7 @@
                                 <td class="px-4 py-2.5 text-sm font-mono text-gray-800">{{ class_basename($job['display_name']) }}</td>
                                 <td class="px-4 py-2.5 text-sm text-gray-500">{{ $job['queue'] }}</td>
                                 <td class="px-4 py-2.5 text-sm text-gray-500">{{ $job['attempts'] }}</td>
-                                <td class="px-4 py-2.5 text-xs text-gray-400">
+                                <td class="px-4 py-2.5 text-[13px] text-gray-400">
                                     {{ \Carbon\Carbon::createFromTimestamp($job['created_at'])->diffForHumans() }}
                                 </td>
                             </tr>
@@ -80,7 +80,7 @@
     <div>
         <h2 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
             Failed
-            <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $failed->isEmpty() ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700' }}">
+            <span class="px-2 py-0.5 rounded-full text-[13px] font-medium {{ $failed->isEmpty() ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700' }}">
                 {{ $failed->count() }}
             </span>
         </h2>
@@ -94,10 +94,10 @@
                 <table class="w-full">
                     <thead>
                         <tr class="border-b border-gray-100 text-left">
-                            <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Job</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Queue</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Error</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Failed at</th>
+                            <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Job</th>
+                            <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Queue</th>
+                            <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Error</th>
+                            <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Failed at</th>
                             <th class="px-4 py-3"></th>
                         </tr>
                     </thead>
@@ -106,14 +106,14 @@
                             <tr class="hover:bg-gray-50 bg-red-50/30">
                                 <td class="px-4 py-2.5 text-sm font-mono text-gray-800">{{ class_basename($job['display_name']) }}</td>
                                 <td class="px-4 py-2.5 text-sm text-gray-500">{{ $job['queue'] }}</td>
-                                <td class="px-4 py-2.5 text-xs text-red-600 max-w-xs truncate">{{ $job['short_error'] ?: '—' }}</td>
-                                <td class="px-4 py-2.5 text-xs text-gray-400 whitespace-nowrap">
+                                <td class="px-4 py-2.5 text-[13px] text-red-600 max-w-xs truncate">{{ $job['short_error'] ?: '—' }}</td>
+                                <td class="px-4 py-2.5 text-[13px] text-gray-400 whitespace-nowrap">
                                     {{ \Carbon\Carbon::parse($job['failed_at'])->diffForHumans() }}
                                 </td>
                                 <td class="px-4 py-2.5 text-right">
                                     <form method="POST" action="{{ route('admin.queue.destroy', $job['id']) }}">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="text-xs text-red-400 hover:text-red-600 transition-colors">Delete</button>
+                                        <button type="submit" class="text-[13px] text-red-400 hover:text-red-600 transition-colors">Delete</button>
                                     </form>
                                 </td>
                             </tr>

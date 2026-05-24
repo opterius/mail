@@ -30,7 +30,7 @@
     </div>
 
     {{-- Cron notice --}}
-    <div class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700 flex items-start gap-2">
+    <div class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-[13px] text-amber-700 flex items-start gap-2">
         <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
         </svg>
@@ -51,10 +51,10 @@
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-gray-100 text-left">
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Subject</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Active from</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Email</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Subject</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Active from</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                         <th class="px-4 py-3"></th>
                     </tr>
                 </thead>
@@ -74,26 +74,26 @@
                             </td>
                             <td class="px-4 py-3">
                                 @if($ar->isCurrentlyActive())
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">Active</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-green-50 text-green-700">Active</span>
                                 @elseif($ar->is_active)
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700">Scheduled</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-yellow-50 text-yellow-700">Scheduled</span>
                                 @else
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Disabled</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-gray-100 text-gray-500">Disabled</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right whitespace-nowrap">
                                 <button @click="openEdit({{ Js::from($ar) }})"
-                                        class="text-xs text-gray-400 hover:text-gray-800 transition-colors mr-2">Edit</button>
+                                        class="text-[13px] text-gray-400 hover:text-gray-800 transition-colors mr-2">Edit</button>
                                 <form method="POST" action="{{ route('admin.autoresponders.toggle', $ar) }}" class="inline mr-2">
                                     @csrf
-                                    <button type="submit" class="text-xs {{ $ar->is_active ? 'text-yellow-500 hover:text-yellow-700' : 'text-green-500 hover:text-green-700' }} transition-colors">
+                                    <button type="submit" class="text-[13px] {{ $ar->is_active ? 'text-yellow-500 hover:text-yellow-700' : 'text-green-500 hover:text-green-700' }} transition-colors">
                                         {{ $ar->is_active ? 'Disable' : 'Enable' }}
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ route('admin.autoresponders.destroy', $ar) }}" class="inline"
                                       onsubmit="return confirm('Delete autoresponder for {{ addslashes($ar->email) }}?')">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="text-xs text-red-400 hover:text-red-600 transition-colors">Delete</button>
+                                    <button type="submit" class="text-[13px] text-red-400 hover:text-red-600 transition-colors">Delete</button>
                                 </form>
                             </td>
                         </tr>
@@ -116,21 +116,21 @@
                 <input x-show="editId" type="hidden" name="_method" value="PUT">
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Email address <span class="text-red-500">*</span></label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1">Email address <span class="text-red-500">*</span></label>
                     <input type="email" name="email" :value="form.email" required
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                            placeholder="user@example.com">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Reply subject <span class="text-red-500">*</span></label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1">Reply subject <span class="text-red-500">*</span></label>
                     <input type="text" name="subject" :value="form.subject" required maxlength="255"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                            placeholder="Out of office: I'll be back on...">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Reply body <span class="text-red-500">*</span></label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1">Reply body <span class="text-red-500">*</span></label>
                     <textarea name="body" :value="form.body" required rows="5"
                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
                               placeholder="Thank you for your message. I am currently out of office..."></textarea>
@@ -138,12 +138,12 @@
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">Active from</label>
+                        <label class="block text-[13px] font-medium text-gray-600 mb-1">Active from</label>
                         <input type="date" name="starts_at" :value="form.starts_at"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">Active until</label>
+                        <label class="block text-[13px] font-medium text-gray-600 mb-1">Active until</label>
                         <input type="date" name="ends_at" :value="form.ends_at"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
                     </div>

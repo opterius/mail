@@ -39,10 +39,10 @@
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-gray-100 text-left">
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Limits</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Max recipients/msg</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Members</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Name</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Limits</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Max recipients/msg</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Members</th>
                         <th class="px-4 py-3"></th>
                     </tr>
                 </thead>
@@ -52,7 +52,7 @@
                             <td class="px-4 py-3">
                                 <p class="font-medium text-gray-900">{{ $group->name }}</p>
                                 @if($group->description)
-                                    <p class="text-xs text-gray-400 mt-0.5">{{ $group->description }}</p>
+                                    <p class="text-[13px] text-gray-400 mt-0.5">{{ $group->description }}</p>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-600">{{ $group->limitsLabel() }}</td>
@@ -62,7 +62,7 @@
                             <td class="px-4 py-3 text-sm text-gray-600">{{ number_format($group->members_count) }}</td>
                             <td class="px-4 py-3 text-right">
                                 <button @click="openEdit({{ Js::from($group) }})"
-                                        class="text-xs text-gray-400 hover:text-gray-800 transition-colors mr-3">
+                                        class="text-[13px] text-gray-400 hover:text-gray-800 transition-colors mr-3">
                                     Edit
                                 </button>
                                 <form method="POST"
@@ -70,7 +70,7 @@
                                       class="inline"
                                       onsubmit="return confirm('Delete group {{ addslashes($group->name) }}? Members will be unassigned.')">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="text-xs text-red-400 hover:text-red-600 transition-colors">Delete</button>
+                                    <button type="submit" class="text-[13px] text-red-400 hover:text-red-600 transition-colors">Delete</button>
                                 </form>
                             </td>
                         </tr>
@@ -101,21 +101,21 @@
                 <template x-if="editId"><input type="hidden" name="_method" value="PUT"></template>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Group name <span class="text-red-500">*</span></label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1">Group name <span class="text-red-500">*</span></label>
                     <input type="text" name="name" :value="form.name" required maxlength="100"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                            placeholder="e.g. Standard, Premium, Restricted">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1">Description</label>
                     <input type="text" name="description" :value="form.description" maxlength="500"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                            placeholder="Optional description">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-2">Sending limits <span class="text-gray-400 font-normal">(leave blank for unlimited)</span></label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-2">Sending limits <span class="text-gray-400 font-normal">(leave blank for unlimited)</span></label>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="text-[11px] text-gray-400">Per hour</label>
@@ -141,7 +141,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Max recipients per message</label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1">Max recipients per message</label>
                     <input type="number" name="max_recipients" :value="form.max_recipients" min="1" max="9999"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                            placeholder="Unlimited">

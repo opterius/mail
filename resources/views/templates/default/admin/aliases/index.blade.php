@@ -33,12 +33,12 @@
     @if($domains->isNotEmpty())
         <div class="mb-4 flex items-center gap-2 flex-wrap">
             <a href="{{ route('admin.aliases.index') }}"
-               class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors {{ !request('domain') ? 'bg-orange-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50' }}">
+               class="px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors {{ !request('domain') ? 'bg-orange-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50' }}">
                 All domains
             </a>
             @foreach($domains as $d)
                 <a href="{{ route('admin.aliases.index', ['domain' => $d]) }}"
-                   class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors {{ request('domain') === $d ? 'bg-orange-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50' }}">
+                   class="px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors {{ request('domain') === $d ? 'bg-orange-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50' }}">
                     {{ $d }}
                 </a>
             @endforeach
@@ -55,9 +55,9 @@
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-gray-100 text-left">
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Alias</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Destination</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Alias</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Destination</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                         <th class="px-4 py-3"></th>
                     </tr>
                 </thead>
@@ -70,25 +70,25 @@
                             </td>
                             <td class="px-4 py-3">
                                 @if($alias->is_active)
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">Active</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-green-50 text-green-700">Active</span>
                                 @else
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Disabled</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-gray-100 text-gray-500">Disabled</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right whitespace-nowrap">
                                 <button @click="openEdit({{ Js::from($alias) }})"
-                                        class="text-xs text-gray-400 hover:text-gray-800 transition-colors mr-3">Edit</button>
+                                        class="text-[13px] text-gray-400 hover:text-gray-800 transition-colors mr-3">Edit</button>
                                 <form method="POST" action="{{ route('admin.aliases.toggle', $alias) }}" class="inline mr-3">
                                     @csrf
                                     <button type="submit"
-                                            class="text-xs {{ $alias->is_active ? 'text-yellow-500 hover:text-yellow-700' : 'text-green-500 hover:text-green-700' }} transition-colors">
+                                            class="text-[13px] {{ $alias->is_active ? 'text-yellow-500 hover:text-yellow-700' : 'text-green-500 hover:text-green-700' }} transition-colors">
                                         {{ $alias->is_active ? 'Disable' : 'Enable' }}
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ route('admin.aliases.destroy', $alias) }}" class="inline"
                                       onsubmit="return confirm('Delete alias {{ addslashes($alias->alias_email) }}?')">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="text-xs text-red-400 hover:text-red-600 transition-colors">Delete</button>
+                                    <button type="submit" class="text-[13px] text-red-400 hover:text-red-600 transition-colors">Delete</button>
                                 </form>
                             </td>
                         </tr>
@@ -116,7 +116,7 @@
 
                 {{-- Create: alias address + domain --}}
                 <div x-show="!editId">
-                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Alias address <span class="text-red-500">*</span></label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Alias address <span class="text-red-500">*</span></label>
                     <div class="flex items-stretch gap-0">
                         <input type="text" name="local" :required="!editId" :value="form.local"
                                placeholder="info"
@@ -134,13 +134,13 @@
 
                 {{-- Edit: show current alias (read-only) --}}
                 <div x-show="editId">
-                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Alias</label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Alias</label>
                     <input type="text" disabled :value="form.alias_email"
                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Destination email <span class="text-red-500">*</span></label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Destination email <span class="text-red-500">*</span></label>
                     <input type="email" name="destination_email" required :value="form.destination_email"
                            placeholder="user@example.com"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">

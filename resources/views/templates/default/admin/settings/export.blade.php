@@ -35,7 +35,7 @@
     @else
 
         {{-- Info box --}}
-        <div class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-700 space-y-1.5 mb-6">
+        <div class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-[13px] text-blue-700 space-y-1.5 mb-6">
             <p class="font-semibold text-sm">Before you paste</p>
             <ul class="list-disc list-inside space-y-1">
                 <li>These snippets use your current database credentials. Keep the generated files readable only by root and the mail daemons.</li>
@@ -96,17 +96,17 @@
                     <div class="px-5 py-3 border-b border-gray-100 flex items-start justify-between gap-4">
                         <div>
                             <h2 class="font-semibold text-gray-800 text-sm">{{ $block['label'] }}</h2>
-                            <p class="text-xs text-gray-400 mt-0.5 font-mono">{{ $block['file'] }}</p>
-                            <p class="text-xs text-gray-500 mt-1">{{ $block['desc'] }}</p>
+                            <p class="text-[13px] text-gray-400 mt-0.5 font-mono">{{ $block['file'] }}</p>
+                            <p class="text-[13px] text-gray-500 mt-1">{{ $block['desc'] }}</p>
                         </div>
                         <button onclick="copyBlock(this)"
                                 data-target="{{ $loop->index }}-dovecot"
-                                class="flex-shrink-0 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition-colors whitespace-nowrap">
+                                class="flex-shrink-0 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[13px] font-medium rounded-lg transition-colors whitespace-nowrap">
                             Copy
                         </button>
                     </div>
                     <div class="relative">
-                        <pre id="{{ $loop->index }}-dovecot" class="px-5 py-4 text-xs font-mono text-gray-700 bg-gray-50 overflow-x-auto leading-relaxed">{{ $dovecot[$block['key']] }}</pre>
+                        <pre id="{{ $loop->index }}-dovecot" class="px-5 py-4 text-[13px] font-mono text-gray-700 bg-gray-50 overflow-x-auto leading-relaxed">{{ $dovecot[$block['key']] }}</pre>
                     </div>
                 </div>
             @endforeach
@@ -150,23 +150,23 @@
                     <div class="px-5 py-3 border-b border-gray-100 flex items-start justify-between gap-4">
                         <div>
                             <h2 class="font-semibold text-gray-800 text-sm">{{ $block['label'] }}</h2>
-                            <p class="text-xs text-gray-400 mt-0.5 font-mono">{{ $block['file'] }}</p>
-                            <p class="text-xs text-gray-500 mt-1">{{ $block['desc'] }}</p>
+                            <p class="text-[13px] text-gray-400 mt-0.5 font-mono">{{ $block['file'] }}</p>
+                            <p class="text-[13px] text-gray-500 mt-1">{{ $block['desc'] }}</p>
                         </div>
                         <button onclick="copyBlock(this)"
                                 data-target="{{ $loop->index }}-postfix"
-                                class="flex-shrink-0 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition-colors whitespace-nowrap">
+                                class="flex-shrink-0 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[13px] font-medium rounded-lg transition-colors whitespace-nowrap">
                             Copy
                         </button>
                     </div>
                     <div class="relative">
-                        <pre id="{{ $loop->index }}-postfix" class="px-5 py-4 text-xs font-mono text-gray-700 bg-gray-50 overflow-x-auto leading-relaxed">{{ $postfix[$block['key']] }}</pre>
+                        <pre id="{{ $loop->index }}-postfix" class="px-5 py-4 text-[13px] font-mono text-gray-700 bg-gray-50 overflow-x-auto leading-relaxed">{{ $postfix[$block['key']] }}</pre>
                     </div>
                 </div>
             @endforeach
 
             {{-- Postfix reload reminder --}}
-            <div class="p-4 rounded-xl bg-gray-100 border border-gray-200 text-xs text-gray-600">
+            <div class="p-4 rounded-xl bg-gray-100 border border-gray-200 text-[13px] text-gray-600">
                 <p class="font-semibold mb-1">After applying all files</p>
                 <pre class="font-mono mt-1">postmap /etc/postfix/mysql_virtual_domains.cf
 postmap /etc/postfix/mysql_virtual_mailboxes.cf

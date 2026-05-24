@@ -36,11 +36,11 @@
             <form method="POST" action="{{ route('admin.domains.store') }}" class="flex items-end gap-3 flex-wrap">
                 @csrf
                 <div class="flex-1 min-w-48">
-                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Domain name <span class="text-red-500">*</span></label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Domain name <span class="text-red-500">*</span></label>
                     <input type="text" name="domain" required placeholder="example.com"
                            value="{{ old('domain') }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                    @error('domain') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                    @error('domain') <p class="text-[13px] text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <button type="submit"
                         class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap">
@@ -60,10 +60,10 @@
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-gray-100 text-left">
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Domain</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Accounts</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Aliases</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Domain</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Accounts</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Aliases</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                         <th class="px-4 py-3"></th>
                     </tr>
                 </thead>
@@ -87,25 +87,25 @@
                             </td>
                             <td class="px-4 py-3">
                                 @if($domain->is_active)
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">Active</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-green-50 text-green-700">Active</span>
                                 @else
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Disabled</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-gray-100 text-gray-500">Disabled</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right whitespace-nowrap">
                                 <a href="{{ route('admin.domains.dns', $domain) }}"
-                                   class="text-xs text-gray-400 hover:text-gray-800 transition-colors mr-3">DNS check</a>
+                                   class="text-[13px] text-gray-400 hover:text-gray-800 transition-colors mr-3">DNS check</a>
                                 <form method="POST" action="{{ route('admin.domains.toggle', $domain) }}" class="inline mr-3">
                                     @csrf
                                     <button type="submit"
-                                            class="text-xs {{ $domain->is_active ? 'text-yellow-500 hover:text-yellow-700' : 'text-green-500 hover:text-green-700' }} transition-colors">
+                                            class="text-[13px] {{ $domain->is_active ? 'text-yellow-500 hover:text-yellow-700' : 'text-green-500 hover:text-green-700' }} transition-colors">
                                         {{ $domain->is_active ? 'Disable' : 'Enable' }}
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ route('admin.domains.destroy', $domain) }}" class="inline"
                                       onsubmit="return confirm('Delete {{ $domain->domain }} and all its accounts and aliases?')">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="text-xs text-red-400 hover:text-red-600 transition-colors">Delete</button>
+                                    <button type="submit" class="text-[13px] text-red-400 hover:text-red-600 transition-colors">Delete</button>
                                 </form>
                             </td>
                         </tr>

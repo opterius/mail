@@ -17,7 +17,7 @@
     {{-- Back + header --}}
     <div class="mb-6">
         <a href="{{ route('admin.accounts.index') }}"
-           class="text-xs text-gray-400 hover:text-gray-700 transition-colors flex items-center gap-1 mb-3 w-fit">
+           class="text-[13px] text-gray-400 hover:text-gray-700 transition-colors flex items-center gap-1 mb-3 w-fit">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
@@ -34,23 +34,23 @@
 
             {{-- Email (read-only) --}}
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1.5">Email address</label>
+                <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Email address</label>
                 <input type="text" disabled value="{{ $mail_account->email }}"
                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed">
-                <p class="text-xs text-gray-400 mt-1">Email cannot be changed. Delete and recreate the account to change it.</p>
+                <p class="text-[13px] text-gray-400 mt-1">Email cannot be changed. Delete and recreate the account to change it.</p>
             </div>
 
             {{-- Password (optional) --}}
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1.5">New password</label>
+                <label class="block text-[13px] font-medium text-gray-600 mb-1.5">New password</label>
                 <input type="password" name="password" autocomplete="new-password"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                        placeholder="Leave blank to keep current password">
-                @error('password') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                @error('password') <p class="text-[13px] text-red-600 mt-1">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1.5">Confirm new password</label>
+                <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Confirm new password</label>
                 <input type="password" name="password_confirmation" autocomplete="new-password"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                        placeholder="Leave blank to keep current password">
@@ -58,21 +58,21 @@
 
             {{-- Quota --}}
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1.5">Quota (MB)</label>
+                <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Quota (MB)</label>
                 <div class="flex items-center gap-3">
                     <input type="number" name="quota_mb" min="1" max="1048576"
                            value="{{ old('quota_mb', $mail_account->quota_mb) }}"
                            placeholder="Unlimited"
                            class="w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                    <p class="text-xs text-gray-400">Empty = unlimited.</p>
+                    <p class="text-[13px] text-gray-400">Empty = unlimited.</p>
                 </div>
-                @error('quota_mb') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                @error('quota_mb') <p class="text-[13px] text-red-600 mt-1">{{ $message }}</p> @enderror
             </div>
 
             {{-- Group --}}
             @if($groups->isNotEmpty())
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Mail group</label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Mail group</label>
                     <select name="group_id"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
                         <option value="">No group</option>

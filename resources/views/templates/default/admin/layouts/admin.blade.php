@@ -41,7 +41,7 @@
                 </div>
                 <div class="min-w-0">
                     <p class="font-semibold text-sm text-white leading-tight">Mail Admin</p>
-                    <p class="text-[10px] text-gray-500 leading-tight truncate">
+                    <p class="text-[11px] text-gray-500 leading-tight truncate">
                         {{ config('mail-ui.admin_mode') ? 'Panel mode' : 'Standalone mode' }}
                     </p>
                 </div>
@@ -70,7 +70,7 @@
 
                 {{-- Panel-mode only items --}}
                 @if(config('mail-ui.admin_mode'))
-                    <p class="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-600">
+                    <p class="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-600">
                         Mail Server
                     </p>
                     {!! $navItem('admin.domains.index', 'Domains') !!}
@@ -85,7 +85,7 @@
             </nav>
 
             {{-- Admin user --}}
-            <div class="px-3 py-3 border-t border-gray-700 text-xs text-gray-500">
+            <div class="px-3 py-3 border-t border-gray-700 text-[13px] text-gray-500">
                 <p class="truncate font-medium text-gray-400">{{ Auth::guard('admin')->user()?->username }}</p>
                 <form method="POST" action="{{ route('admin.logout') }}" class="mt-1.5">
                     @csrf

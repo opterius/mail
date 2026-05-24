@@ -29,13 +29,13 @@
             </div>
             <div class="px-5 py-4 space-y-4">
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Webmail display name</label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Webmail display name</label>
                     <input type="text" name="webmail_name"
                            value="{{ old('webmail_name', $settings['webmail_name'] ?? 'Opterius Mail') }}"
                            maxlength="100"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                            placeholder="Opterius Mail">
-                    <p class="text-xs text-gray-400 mt-1">Shown in browser title and email footer.</p>
+                    <p class="text-[13px] text-gray-400 mt-1">Shown in browser title and email footer.</p>
                 </div>
             </div>
         </div>
@@ -44,33 +44,33 @@
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div class="px-5 py-3 border-b border-gray-100">
                 <h2 class="font-semibold text-gray-800 text-sm">Default sending limits</h2>
-                <p class="text-xs text-gray-400 mt-0.5">Applied to users with no group assigned. Leave blank for unlimited.</p>
+                <p class="text-[13px] text-gray-400 mt-0.5">Applied to users with no group assigned. Leave blank for unlimited.</p>
             </div>
             <div class="px-5 py-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1.5">Emails per hour</label>
+                        <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Emails per hour</label>
                         <input type="number" name="default_hourly_limit" min="1"
                                value="{{ old('default_hourly_limit', $settings['default_hourly_limit'] ?? '') }}"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                                placeholder="Unlimited">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1.5">Emails per day</label>
+                        <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Emails per day</label>
                         <input type="number" name="default_daily_limit" min="1"
                                value="{{ old('default_daily_limit', $settings['default_daily_limit'] ?? '') }}"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                                placeholder="Unlimited">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1.5">Emails per week</label>
+                        <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Emails per week</label>
                         <input type="number" name="default_weekly_limit" min="1"
                                value="{{ old('default_weekly_limit', $settings['default_weekly_limit'] ?? '') }}"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                                placeholder="Unlimited">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1.5">Emails per month</label>
+                        <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Emails per month</label>
                         <input type="number" name="default_monthly_limit" min="1"
                                value="{{ old('default_monthly_limit', $settings['default_monthly_limit'] ?? '') }}"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
@@ -79,7 +79,7 @@
                 </div>
 
                 <div class="mt-4">
-                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Max recipients per message</label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Max recipients per message</label>
                     <input type="number" name="default_max_recipients" min="1" max="9999"
                            value="{{ old('default_max_recipients', $settings['default_max_recipients'] ?? '') }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"

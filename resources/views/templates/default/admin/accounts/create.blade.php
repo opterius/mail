@@ -17,7 +17,7 @@
     {{-- Back + header --}}
     <div class="mb-6">
         <a href="{{ route('admin.accounts.index') }}"
-           class="text-xs text-gray-400 hover:text-gray-700 transition-colors flex items-center gap-1 mb-3 w-fit">
+           class="text-[13px] text-gray-400 hover:text-gray-700 transition-colors flex items-center gap-1 mb-3 w-fit">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
@@ -34,7 +34,7 @@
 
             {{-- Email --}}
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1.5">Email address <span class="text-red-500">*</span></label>
+                <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Email address <span class="text-red-500">*</span></label>
                 <div class="flex items-stretch gap-0">
                     <input type="text" name="local" required
                            value="{{ old('local') }}"
@@ -51,41 +51,41 @@
                         @endforeach
                     </select>
                 </div>
-                @error('local') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-                @error('domain_id') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                @error('local') <p class="text-[13px] text-red-600 mt-1">{{ $message }}</p> @enderror
+                @error('domain_id') <p class="text-[13px] text-red-600 mt-1">{{ $message }}</p> @enderror
             </div>
 
             {{-- Password --}}
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1.5">Password <span class="text-red-500">*</span></label>
+                <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Password <span class="text-red-500">*</span></label>
                 <input type="password" name="password" required autocomplete="new-password"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                @error('password') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                @error('password') <p class="text-[13px] text-red-600 mt-1">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1.5">Confirm password <span class="text-red-500">*</span></label>
+                <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Confirm password <span class="text-red-500">*</span></label>
                 <input type="password" name="password_confirmation" required autocomplete="new-password"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
             </div>
 
             {{-- Quota --}}
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1.5">Quota (MB)</label>
+                <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Quota (MB)</label>
                 <div class="flex items-center gap-3">
                     <input type="number" name="quota_mb" min="1" max="1048576"
                            value="{{ old('quota_mb') }}"
                            placeholder="Leave empty for unlimited"
                            class="w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
-                    <p class="text-xs text-gray-400">Empty = unlimited. E.g. 1024 = 1 GB.</p>
+                    <p class="text-[13px] text-gray-400">Empty = unlimited. E.g. 1024 = 1 GB.</p>
                 </div>
-                @error('quota_mb') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                @error('quota_mb') <p class="text-[13px] text-red-600 mt-1">{{ $message }}</p> @enderror
             </div>
 
             {{-- Group --}}
             @if($groups->isNotEmpty())
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Mail group</label>
+                    <label class="block text-[13px] font-medium text-gray-600 mb-1.5">Mail group</label>
                     <select name="group_id"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
                         <option value="">No group</option>
@@ -95,7 +95,7 @@
                             </option>
                         @endforeach
                     </select>
-                    <p class="text-xs text-gray-400 mt-1">Groups control sending limits for this account.</p>
+                    <p class="text-[13px] text-gray-400 mt-1">Groups control sending limits for this account.</p>
                 </div>
             @endif
 

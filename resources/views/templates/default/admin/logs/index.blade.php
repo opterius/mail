@@ -42,12 +42,12 @@
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-gray-100 text-left">
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Sender</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Subject</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Rcpt</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">IP</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Sender</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Subject</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Rcpt</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">IP</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Date</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
@@ -58,13 +58,13 @@
                             <td class="px-4 py-2.5 text-sm text-gray-600">{{ $row->recipient_count }}</td>
                             <td class="px-4 py-2.5">
                                 @if($row->status === 'failed')
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">failed</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-red-100 text-red-700">failed</span>
                                 @else
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">sent</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-green-50 text-green-700">sent</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-2.5 text-xs text-gray-400 font-mono">{{ $row->ip ?? '—' }}</td>
-                            <td class="px-4 py-2.5 text-xs text-gray-400 whitespace-nowrap">{{ $row->created_at->format('Y-m-d H:i') }}</td>
+                            <td class="px-4 py-2.5 text-[13px] text-gray-400 font-mono">{{ $row->ip ?? '—' }}</td>
+                            <td class="px-4 py-2.5 text-[13px] text-gray-400 whitespace-nowrap">{{ $row->created_at->format('Y-m-d H:i') }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -73,11 +73,11 @@
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-gray-100 text-left">
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">IP</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">User agent</th>
-                        <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Email</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">IP</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">User agent</th>
+                        <th class="px-4 py-3 text-[13px] font-semibold text-gray-500 uppercase tracking-wide">Date</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
@@ -88,14 +88,14 @@
                             </td>
                             <td class="px-4 py-2.5">
                                 @if(!$row->success)
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">failed</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-red-100 text-red-700">failed</span>
                                 @else
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">success</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-green-50 text-green-700">success</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-2.5 text-xs text-gray-400 font-mono">{{ $row->ip ?? '—' }}</td>
-                            <td class="px-4 py-2.5 text-xs text-gray-400 max-w-xs truncate">{{ $row->user_agent ?? '—' }}</td>
-                            <td class="px-4 py-2.5 text-xs text-gray-400 whitespace-nowrap">{{ $row->created_at->format('Y-m-d H:i') }}</td>
+                            <td class="px-4 py-2.5 text-[13px] text-gray-400 font-mono">{{ $row->ip ?? '—' }}</td>
+                            <td class="px-4 py-2.5 text-[13px] text-gray-400 max-w-xs truncate">{{ $row->user_agent ?? '—' }}</td>
+                            <td class="px-4 py-2.5 text-[13px] text-gray-400 whitespace-nowrap">{{ $row->created_at->format('Y-m-d H:i') }}</td>
                         </tr>
                     @endforeach
                 </tbody>
