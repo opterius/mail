@@ -47,6 +47,7 @@ class GroupController extends Controller
             'monthly_limit'   => ['nullable', 'integer', 'min:1'],
         ]);
 
+        $data['description'] ??= '';
         MailGroup::create($data);
 
         return redirect()->route('admin.groups.index')->with('success', "Group \"{$data['name']}\" created.");
@@ -64,6 +65,7 @@ class GroupController extends Controller
             'monthly_limit'   => ['nullable', 'integer', 'min:1'],
         ]);
 
+        $data['description'] ??= '';
         $mail_group->update($data);
 
         return redirect()->route('admin.groups.index')->with('success', "Group \"{$mail_group->name}\" updated.");
