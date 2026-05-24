@@ -78,6 +78,7 @@ Route::prefix(config('mail-ui.admin_prefix', 'admin'))->name('admin.')->middlewa
 
         // Accounts
         Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
+        Route::get('/accounts/{email}/show', [AccountController::class, 'show'])->name('accounts.show')->where('email', '.+');
         Route::get('/accounts/create', [AccountController::class, 'create'])->name('accounts.create');
         Route::get('/accounts/usage', [UsageController::class, 'index'])->name('accounts.usage');
         Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');

@@ -140,7 +140,14 @@
                 <tbody class="divide-y divide-gray-50">
                     @foreach($accounts as $account)
                         <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $account->email }}</td>
+                            <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                                @if($standaloneMode)
+                                    <a href="{{ route('admin.accounts.show', ['email' => $account->email]) }}"
+                                       class="text-orange-600 hover:text-orange-800 transition-colors">{{ $account->email }}</a>
+                                @else
+                                    {{ $account->email }}
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-sm text-gray-500">{{ $account->group?->name ?? '—' }}</td>
                             @if($standaloneMode)
                                 <td class="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{{ $account->created_at?->format('Y-m-d') ?? '—' }}</td>

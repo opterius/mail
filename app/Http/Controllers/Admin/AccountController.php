@@ -80,6 +80,50 @@ class AccountController extends Controller
         return view(mailView('admin.accounts.index'), compact('accounts', 'domains', 'standaloneMode', 'sort', 'dir'));
     }
 
+    public function show(string $email)
+    {
+        $account = \App\Models\UserSetting::with('group')
+            ->where('email', $email)
+            ->firstOrFail();
+
+        // Daily chart data: last 30 days
+        $days = collect();
+        for ($i = 29; $i >= 0; $i--) {
+            $days->push(now()->subDays($i)->format('Y-m-d'));
+        }
+
+        $dailyCounts = \App\Models\MailSendLog::where('email', $email)
+            ->where('status', 'sent')
+            ->where('created_at', '>=', now()->subDays(30)->startOfDay())
+            ->selectRaw('DATE(created_at) as day, COUNT(*) as total')
+            ->groupBy('day')
+            ->pluck('total', 'day');
+
+        $chartLabels = $days->map(fn($d) => \Carbon\Carbon::parse($d)->format('M j'))->values();
+        $chartData   = $days->map(fn($d) => $dailyCounts->get($d, 0))->values();
+
+        // Summary stats
+        $stats = \App\Models\MailSendLog::where('email', $email)->where('status', 'sent')
+            ->selectRaw('
+                COUNT(*) as total_all,
+                COUNT(CASE WHEN created_at >= ? THEN 1 END) as sent_24h,
+                COUNT(CASE WHEN created_at >= ? THEN 1 END) as sent_7d,
+                COUNT(CASE WHEN created_at >= ? THEN 1 END) as sent_30d,
+                COUNT(CASE WHEN created_at >= ? THEN 1 END) as sent_90d
+            ', [now()->subDay(), now()->subDays(7), now()->subDays(30), now()->subDays(90)])
+            ->first();
+
+        // Recent sends
+        $recentLogs = \App\Models\MailSendLog::where('email', $email)
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
+
+        return view(mailView('admin.accounts.show'), compact(
+            'account', 'chartLabels', 'chartData', 'stats', 'recentLogs'
+        ));
+    }
+
     public function create()
     {
         $domains = MailDomain::where('is_active', true)->orderBy('domain')->get();
