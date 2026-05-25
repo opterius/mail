@@ -9,7 +9,7 @@
 --}}
 @extends(mailView('layouts.auth'))
 
-@section('title', 'Two-Factor Auth — Opterius Mail')
+@section('title', 'Two-Factor Auth — ' . (\App\Models\AdminSetting::get('webmail_name') ?: 'Webmail'))
 
 @section('content')
 <div class="text-center mb-8">

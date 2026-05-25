@@ -9,7 +9,8 @@
 --}}
 @extends(mailView('layouts.auth'))
 
-@section('title', 'Sign in — Opterius Mail')
+@php $webmailName = \App\Models\AdminSetting::get('webmail_name') ?: 'Webmail'; @endphp
+@section('title', 'Sign in — ' . $webmailName)
 
 @section('content')
 <div class="text-center mb-8">
@@ -19,7 +20,7 @@
                   d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
         </svg>
     </div>
-    <h1 class="text-2xl font-bold text-gray-900">Opterius Mail</h1>
+    <h1 class="text-2xl font-bold text-gray-900">{{ $webmailName }}</h1>
     <p class="text-sm text-gray-500 mt-1">Sign in with your email account</p>
 </div>
 
@@ -53,7 +54,5 @@
     </form>
 </div>
 
-<p class="text-center text-xs text-gray-400 mt-6">
-    Opterius Mail &mdash; Open-source webmail
-</p>
+<p class="text-center text-[13px] text-gray-400 mt-6">{{ $webmailName }}</p>
 @endsection
