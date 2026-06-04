@@ -42,11 +42,12 @@ class AuthController extends Controller
             'email'    => ['required', 'email'],
             'password' => ['required'],
         ]);
+        $remember = $request->boolean('remember');
 
         /** @var \App\Auth\ImapGuard $guard */
         $guard = Auth::guard('web');
 
-        if (!$guard->attempt($credentials)) {
+        if (!$guard->attempt($credentials, $remember)) {
             LoginLog::record($credentials['email'], $request, false);
 
             return back()
@@ -57,6 +58,12 @@ class AuthController extends Controller
         LoginLog::record($credentials['email'], $request, true);
 
         $request->session()->regenerate();
+
+        // 30-day cookie when "Remember me" was ticked. Must happen after
+        // regenerate() so the cookie carries the new session id.
+        if ($guard instanceof \App\Auth\ImapGuard) {
+            $guard->applyRememberCookie();
+        }
 
         // Check if 2FA is enabled for this account
         $tf = UserTwoFactor::where('email', $credentials['email'])

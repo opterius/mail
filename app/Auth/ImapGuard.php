@@ -69,8 +69,14 @@ class ImapGuard implements Guard
 
     /**
      * Attempt to authenticate and create a session on success.
+     *
+     * The webmail can't use Laravel's standard remember-token mechanism
+     * (no users table, the IMAP password is required for every request),
+     * so when $remember is true we stash a flag in the session and the
+     * controller then calls applyRememberCookie() AFTER session
+     * regeneration to re-queue the cookie with a 30-day lifetime.
      */
-    public function attempt(array $credentials): bool
+    public function attempt(array $credentials, bool $remember = false): bool
     {
         $email    = $credentials['email'] ?? '';
         $password = $credentials['password'] ?? '';
@@ -83,11 +89,34 @@ class ImapGuard implements Guard
             'imap_email'        => $email,
             'imap_password'     => encrypt($password),
             'imap_display_name' => $credentials['name'] ?? $email,
+            'imap_remember'     => $remember,
         ]);
 
         $this->user = new ImapUser(email: $email, name: $credentials['name'] ?? $email);
 
         return true;
+    }
+
+    /**
+     * Re-queue the session cookie with a 30-day lifetime when the user
+     * ticked "Remember me". Called by the controller AFTER session
+     * regeneration so the cookie carries the post-regen session ID.
+     */
+    public function applyRememberCookie(): void
+    {
+        if (!session('imap_remember')) return;
+
+        \Illuminate\Support\Facades\Cookie::queue(
+            config('session.cookie'),
+            session()->getId(),
+            60 * 24 * 30, // 30 days
+            config('session.path'),
+            config('session.domain'),
+            config('session.secure'),
+            true,
+            false,
+            config('session.same_site', 'lax'),
+        );
     }
 
     /**
