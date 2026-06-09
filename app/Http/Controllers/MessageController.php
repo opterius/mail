@@ -24,6 +24,11 @@
 namespace App\Http\Controllers;
 
 use App\Auth\ImapGuard;
+use App\Models\EmailNote;
+use App\Models\KnownSender;
+use App\Models\ReplyLaterEmail;
+use App\Models\SetAsideEmail;
+use App\Models\SnoozedEmail;
 use App\Services\ImapConnection;
 use App\Services\MimeParser;
 use Illuminate\Http\Request;
@@ -86,12 +91,26 @@ class MessageController extends Controller
         $receiptSetting = userSettings()->read_receipt ?? 'ask';
         $receiptTo      = $message['receipt_to']['email'] ?? '';
 
+        $userEmail  = auth('web')->user()->email;
+        $senderEmail = strtolower($message['from']['email'] ?? '');
+
+        $note        = EmailNote::where('user_email', $userEmail)->where('imap_uid', $uidInt)->where('mailbox', $folder)->first();
+        $isSnoozed   = SnoozedEmail::isSnoozed($userEmail, $uidInt, $folder);
+        $isSetAside  = SetAsideEmail::where('user_email', $userEmail)->where('imap_uid', $uidInt)->where('mailbox', $folder)->exists();
+        $isReplyLater= ReplyLaterEmail::where('user_email', $userEmail)->where('imap_uid', $uidInt)->where('mailbox', $folder)->exists();
+        $isKnownSender = KnownSender::isKnown($userEmail, $senderEmail);
+
         return view(mailView('inbox.message'), [
             'folders'        => $folders,
             'currentFolder'  => $folder,
             'message'        => $message,
             'receiptTo'      => $receiptTo,
             'receiptSetting' => $receiptSetting,
+            'note'           => $note,
+            'isSnoozed'      => $isSnoozed,
+            'isSetAside'     => $isSetAside,
+            'isReplyLater'   => $isReplyLater,
+            'isKnownSender'  => $isKnownSender,
         ]);
     }
 

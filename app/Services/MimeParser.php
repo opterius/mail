@@ -58,6 +58,7 @@ class MimeParser
             'date_raw'        => $headers['date'] ?? '',
             'message_id'      => trim($headers['message-id'] ?? ''),
             'receipt_to'      => $this->parseSingleAddress($this->decodeHeader($headers['disposition-notification-to'] ?? '')),
+            'list_unsubscribe'=> trim($headers['list-unsubscribe'] ?? ''),
             'body_html'       => '',
             'body_text'       => '',
             'has_attachments' => false,

@@ -479,29 +479,115 @@
         </div>
 
         {{-- Footer / actions --}}
-        <div class="flex items-center gap-3 px-6 py-3 border-t border-gray-100 bg-white sticky bottom-0">
-            <button type="submit"
-                    class="flex items-center gap-2 px-5 py-2 bg-orange-500 hover:bg-orange-600
-                           text-white text-sm font-medium rounded-lg transition-colors">
+        <div class="flex items-center gap-2 px-6 py-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 sticky bottom-0"
+             x-data="{
+                sendLaterOpen: false,
+                undoCountdown: 0,
+                undoTimer: null,
+                sentData: null,
+                focusMode: false,
+                scheduledSending: false,
+
+                scheduleSend(sendAt) {
+                    this.scheduledSending = true;
+                    this.sendLaterOpen = false;
+                    const form = document.getElementById('compose-form');
+                    const fd = new FormData(form);
+                    const body = fd.get('body') || (form.querySelector('trix-editor') ? form.querySelector('trix-editor').innerHTML : '');
+                    const data = new FormData();
+                    data.append('_token', {{ Js::from(csrf_token()) }});
+                    data.append('to', fd.get('to') || '');
+                    data.append('cc', fd.get('cc') || '');
+                    data.append('bcc', fd.get('bcc') || '');
+                    data.append('subject', fd.get('subject') || '');
+                    data.append('body', body);
+                    data.append('send_at', sendAt);
+                    fetch({{ Js::from(route('scheduled.store')) }}, {
+                        method: 'POST', headers: { 'Accept': 'application/json' }, body: data
+                    }).then(r => {
+                        this.scheduledSending = false;
+                        if (r.ok) window.location.href = {{ Js::from(route('scheduled.index')) }};
+                    });
+                },
+             }">
+
+            {{-- Undo send overlay --}}
+            <div x-show="undoCountdown > 0" x-cloak
+                 class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 bg-gray-900 text-white rounded-xl shadow-xl text-sm">
+                <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span>Email sent. <span x-text="undoCountdown"></span>s to undo.</span>
+                <button @click="clearTimeout(undoTimer); undoCountdown = 0; sentData = null;"
+                        class="px-3 py-1 bg-white text-gray-900 font-medium rounded-lg hover:bg-gray-100 transition-colors text-[13px]">
+                    Undo
+                </button>
+            </div>
+
+            {{-- Focus mode toggle --}}
+            <button type="button" @click="focusMode = !focusMode; document.querySelector('.compose-wrapper')?.classList.toggle('fixed', focusMode); document.querySelector('.compose-wrapper')?.classList.toggle('inset-0', focusMode); document.querySelector('.compose-wrapper')?.classList.toggle('z-50', focusMode); document.querySelector('.compose-wrapper')?.classList.toggle('bg-white', focusMode);"
+                    class="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="Focus mode">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                </svg>
+            </button>
+
+            <button type="submit"
+                    class="flex items-center gap-2 px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                 </svg>
                 Send
             </button>
 
+            {{-- Send Later --}}
+            <div class="relative">
+                <button type="button" @click="sendLaterOpen = !sendLaterOpen"
+                        class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Send Later
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div x-show="sendLaterOpen" @click.outside="sendLaterOpen = false" x-cloak
+                     class="absolute bottom-full mb-1 left-0 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 py-1"
+                     style="display:none">
+                    @php
+                        $laterOptions = [
+                            ['label' => 'In 2 hours',        'fn' => "scheduleSend(new Date(Date.now()+2*3600000).toISOString())"],
+                            ['label' => 'Tonight at 8pm',    'fn' => "scheduleSend((() => { let d = new Date(); d.setHours(20,0,0,0); if(d < new Date()) d.setDate(d.getDate()+1); return d.toISOString(); })())"],
+                            ['label' => 'Tomorrow morning',  'fn' => "scheduleSend((() => { let d = new Date(); d.setDate(d.getDate()+1); d.setHours(8,0,0,0); return d.toISOString(); })())"],
+                            ['label' => 'Next Monday',       'fn' => "scheduleSend((() => { let d = new Date(); let diff = 8-d.getDay(); if(diff===8) diff=1; d.setDate(d.getDate()+diff); d.setHours(8,0,0,0); return d.toISOString(); })())"],
+                        ];
+                    @endphp
+                    @foreach($laterOptions as $opt)
+                    <button type="button" @click="{{ $opt['fn'] }}" :disabled="scheduledSending"
+                            class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        {{ $opt['label'] }}
+                    </button>
+                    @endforeach
+                    <div class="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1 px-3 pb-2">
+                        <label class="text-[13px] text-gray-400 block mb-1">Custom date & time</label>
+                        <input type="datetime-local" id="send-later-custom"
+                               class="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400">
+                        <button type="button" @click="scheduleSend(document.getElementById('send-later-custom').value)" :disabled="scheduledSending"
+                                class="mt-1.5 w-full py-1.5 text-sm bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-lg transition-colors">
+                            <span x-text="scheduledSending ? 'Scheduling…' : 'Schedule'"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <button type="button" @click="saveDraft()"
-                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600
-                           bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
                 </svg>
                 Save Draft
             </button>
 
-            <a href="{{ $backHref }}"
-               class="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
+            <a href="{{ $backHref }}" class="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
                 Discard
             </a>
         </div>

@@ -255,6 +255,73 @@
                 </svg>
                 Contacts
             </a>
+            {{-- ---- HEY-style sections ---- --}}
+            <div class="pt-3 pb-1">
+                <p class="px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Smart</p>
+            </div>
+
+            <a href="{{ route('screener.index') }}"
+               class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                      {{ request()->routeIs('screener*') ? 'bg-orange-50 dark:bg-orange-900/25 text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200' }}">
+                <svg style="width:18px;height:18px;flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+                Screener
+            </a>
+
+            <a href="{{ route('feed.index') }}"
+               class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                      {{ request()->routeIs('feed*') ? 'bg-orange-50 dark:bg-orange-900/25 text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200' }}">
+                <svg style="width:18px;height:18px;flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 5c7.18 0 13 5.82 13 13M6 11a7 7 0 017 7m-6 0a1 1 0 11-2 0 1 1 0 012 0z"/>
+                </svg>
+                Feed
+            </a>
+
+            <div class="pt-3 pb-1">
+                <p class="px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Parked</p>
+            </div>
+
+            <a href="{{ route('snooze.index') }}"
+               class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                      {{ request()->routeIs('snooze*') ? 'bg-orange-50 dark:bg-orange-900/25 text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200' }}">
+                <svg style="width:18px;height:18px;flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Snoozed
+            </a>
+
+            <a href="{{ route('set-aside.index') }}"
+               class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                      {{ request()->routeIs('set-aside*') ? 'bg-orange-50 dark:bg-orange-900/25 text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200' }}">
+                <svg style="width:18px;height:18px;flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                </svg>
+                Set Aside
+            </a>
+
+            <a href="{{ route('reply-later.index') }}"
+               class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                      {{ request()->routeIs('reply-later*') ? 'bg-orange-50 dark:bg-orange-900/25 text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200' }}">
+                <svg style="width:18px;height:18px;flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                </svg>
+                Reply Later
+            </a>
+
+            <a href="{{ route('scheduled.index') }}"
+               class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                      {{ request()->routeIs('scheduled*') ? 'bg-orange-50 dark:bg-orange-900/25 text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200' }}">
+                <svg style="width:18px;height:18px;flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                Scheduled
+            </a>
+
+            <div class="pt-3 pb-1">
+                <p class="px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600">Account</p>
+            </div>
+
             <a href="{{ route('settings') }}"
                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
                       {{ request()->routeIs('settings*') ? 'bg-orange-50 dark:bg-orange-900/25 text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200' }}">

@@ -40,6 +40,13 @@ use App\Http\Controllers\Api\MessagesController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\ContactGroupController;
 use App\Http\Controllers\SsoController;
+use App\Http\Controllers\ScreenerController;
+use App\Http\Controllers\SnoozeController;
+use App\Http\Controllers\SetAsideController;
+use App\Http\Controllers\ReplyLaterController;
+use App\Http\Controllers\EmailNoteController;
+use App\Http\Controllers\ScheduledEmailController;
+use App\Http\Controllers\FeedController;
 use Illuminate\Support\Facades\Route;
 
 // ------------------------------------------------------------------
@@ -149,4 +156,39 @@ Route::middleware('imap.auth')->group(function () {
 
     // Paginated message list API
     Route::get('/api/messages', [MessagesController::class, 'index'])->name('api.messages');
+
+    // Screener
+    Route::get('/screener', [ScreenerController::class, 'index'])->name('screener.index');
+    Route::post('/screener/approve', [ScreenerController::class, 'approve'])->name('screener.approve');
+    Route::post('/screener/block', [ScreenerController::class, 'block'])->name('screener.block');
+    Route::delete('/screener', [ScreenerController::class, 'destroy'])->name('screener.destroy');
+
+    // Snooze
+    Route::get('/snoozed', [SnoozeController::class, 'index'])->name('snooze.index');
+    Route::post('/snooze', [SnoozeController::class, 'store'])->name('snooze.store');
+    Route::delete('/snooze', [SnoozeController::class, 'destroy'])->name('snooze.destroy');
+
+    // Set Aside
+    Route::get('/set-aside', [SetAsideController::class, 'index'])->name('set-aside.index');
+    Route::post('/set-aside', [SetAsideController::class, 'store'])->name('set-aside.store');
+    Route::delete('/set-aside', [SetAsideController::class, 'destroy'])->name('set-aside.destroy');
+
+    // Reply Later
+    Route::get('/reply-later', [ReplyLaterController::class, 'index'])->name('reply-later.index');
+    Route::post('/reply-later', [ReplyLaterController::class, 'store'])->name('reply-later.store');
+    Route::delete('/reply-later', [ReplyLaterController::class, 'destroy'])->name('reply-later.destroy');
+
+    // Email Notes
+    Route::post('/note', [EmailNoteController::class, 'store'])->name('note.store');
+    Route::delete('/note', [EmailNoteController::class, 'destroy'])->name('note.destroy');
+
+    // Scheduled Emails
+    Route::get('/scheduled', [ScheduledEmailController::class, 'index'])->name('scheduled.index');
+    Route::post('/scheduled', [ScheduledEmailController::class, 'store'])->name('scheduled.store');
+    Route::delete('/scheduled/{scheduledEmail}', [ScheduledEmailController::class, 'destroy'])->name('scheduled.destroy');
+
+    // Feed
+    Route::get('/feed', [FeedController::class, 'index'])->name('feed.index');
+    Route::post('/feed', [FeedController::class, 'store'])->name('feed.store');
+    Route::delete('/feed', [FeedController::class, 'destroy'])->name('feed.destroy');
 });
