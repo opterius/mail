@@ -210,6 +210,18 @@ class ComposeController extends Controller
                 status:         'sent',
             );
 
+            // Sender reputation: bump sent_to_count for every recipient.
+            // If this is a reply (in_reply_to_uid set) we also bump
+            // replied_count - that distinguishes a fresh send from a
+            // back-and-forth conversation.
+            $isReply = $request->filled('in_reply_to_uid') || $request->filled('original_from');
+            foreach ($this->extractRecipientEmails($data['to'], $data['cc'] ?? '') as $rcpt) {
+                \App\Models\SenderStat::bump($email, $rcpt, 'sent_to_count', 1, 'last_sent_to_at');
+                if ($isReply) {
+                    \App\Models\SenderStat::bump($email, $rcpt, 'replied_count', 1, 'last_replied_at');
+                }
+            }
+
             // Save a copy to the user's Sent folder. Failure here must not
             // surface to the user — the message was already delivered.
             $this->saveToSent($guard, $rawMessage);
@@ -726,5 +738,25 @@ class ComposeController extends Controller
             return rtrim(wordwrap(strip_tags($message['body_html']), 80));
         }
         return '';
+    }
+
+    /**
+     * Pulls bare email addresses out of comma/semicolon-separated
+     * 'Name <addr@x>' style strings. Returns lowercase, deduplicated.
+     */
+    private function extractRecipientEmails(string ...$lists): array
+    {
+        $out = [];
+        foreach ($lists as $list) {
+            if ($list === '') continue;
+            foreach (preg_split('/[,;]/', $list) ?: [] as $piece) {
+                if (preg_match('/<([^>]+)>/', $piece, $m)) {
+                    $out[] = strtolower(trim($m[1]));
+                } elseif (filter_var(trim($piece), FILTER_VALIDATE_EMAIL)) {
+                    $out[] = strtolower(trim($piece));
+                }
+            }
+        }
+        return array_values(array_unique(array_filter($out)));
     }
 }

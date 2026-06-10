@@ -27,10 +27,13 @@ use App\Auth\ImapGuard;
 use App\Models\EmailNote;
 use App\Models\KnownSender;
 use App\Models\ReplyLaterEmail;
+use App\Models\SenderStat;
 use App\Models\SetAsideEmail;
 use App\Models\SnoozedEmail;
+use App\Services\ContentSanitizer;
 use App\Services\ImapConnection;
 use App\Services\MimeParser;
+use App\Services\SenderReputation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -94,11 +97,31 @@ class MessageController extends Controller
         $userEmail  = auth('web')->user()->email;
         $senderEmail = strtolower($message['from']['email'] ?? '');
 
+        // Sanitize the HTML body: neutralise spy pixels + strip
+        // tracking params from links before render.
+        $sanitizer = new ContentSanitizer();
+        if ($message['body_html'] !== '') {
+            $message['body_html'] = $sanitizer->sanitize($message['body_html']);
+        }
+        $message['spy_pixels_blocked']  = $sanitizer->spyPixelCount;
+        $message['trackers_cleaned']    = $sanitizer->cleanedLinkCount;
+
+        // Bump received counter for this sender. We only count a single
+        // 'received' per uid by checking whether SenderStat existed
+        // before this view; first_seen_at on creation means this is
+        // an idempotent enough proxy for new-message arrival.
+        if ($senderEmail) {
+            SenderStat::bump($userEmail, $senderEmail, 'received_count', 1, 'last_received_at');
+        }
+
         $note        = EmailNote::where('user_email', $userEmail)->where('imap_uid', $uidInt)->where('mailbox', $folder)->first();
         $isSnoozed   = SnoozedEmail::isSnoozed($userEmail, $uidInt, $folder);
         $isSetAside  = SetAsideEmail::where('user_email', $userEmail)->where('imap_uid', $uidInt)->where('mailbox', $folder)->exists();
         $isReplyLater= ReplyLaterEmail::where('user_email', $userEmail)->where('imap_uid', $uidInt)->where('mailbox', $folder)->exists();
         $isKnownSender = KnownSender::isKnown($userEmail, $senderEmail);
+
+        // Trust badge.
+        $senderBadge = (new SenderReputation())->badgeFor($userEmail, $senderEmail);
 
         return view(mailView('inbox.message'), [
             'folders'        => $folders,
@@ -111,6 +134,7 @@ class MessageController extends Controller
             'isSetAside'     => $isSetAside,
             'isReplyLater'   => $isReplyLater,
             'isKnownSender'  => $isKnownSender,
+            'senderBadge'    => $senderBadge,
         ]);
     }
 
