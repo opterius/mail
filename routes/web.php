@@ -130,6 +130,9 @@ Route::middleware('imap.auth')->group(function () {
     Route::get('/settings', [SettingController::class, 'index'])->name('settings');
     Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
 
+    // Help (feature reference page)
+    Route::get('/help', [\App\Http\Controllers\HelpController::class, 'index'])->name('help');
+
     // Two-factor authentication setup
     Route::get('/settings/2fa',          [TwoFactorController::class, 'show'])->name('2fa.setup');
     Route::post('/settings/2fa/enable',  [TwoFactorController::class, 'enable'])->name('2fa.enable');

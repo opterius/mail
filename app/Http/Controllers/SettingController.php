@@ -24,6 +24,7 @@
 namespace App\Http\Controllers;
 
 use App\Auth\ImapGuard;
+use App\Models\KnownSender;
 use App\Models\UserSetting;
 use App\Services\ImapConnection;
 use Illuminate\Http\Request;
@@ -51,11 +52,18 @@ class SettingController extends Controller
         } catch (\Throwable) {
         }
 
+        $email = auth('web')->user()->email;
+        $blockedSenders = KnownSender::where('user_email', $email)
+            ->where('status', 'blocked')
+            ->orderBy('sender_email')
+            ->get(['id', 'sender_email', 'created_at']);
+
         return view(mailView('settings.index'), [
-            'settings'      => userSettings(),
-            'folders'       => [],
-            'currentFolder' => '',
-            'quota'         => $quota,
+            'settings'        => userSettings(),
+            'folders'         => [],
+            'currentFolder'   => '',
+            'quota'           => $quota,
+            'blockedSenders'  => $blockedSenders,
         ]);
     }
 

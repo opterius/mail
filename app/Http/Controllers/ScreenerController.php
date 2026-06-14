@@ -33,13 +33,20 @@ class ScreenerController extends Controller
     {
         $request->validate(['sender_email' => 'required|email']);
         $email = auth('web')->user()->email;
+        $sender = strtolower($request->sender_email);
 
         KnownSender::updateOrCreate(
-            ['user_email' => $email, 'sender_email' => strtolower($request->sender_email)],
+            ['user_email' => $email, 'sender_email' => $sender],
             ['status' => 'blocked']
         );
 
-        return back()->with('success', "{$request->sender_email} blocked.");
+        // Flash a structured "undo_block" payload so the global toast
+        // partial can render an Undo button that targets this exact
+        // sender for the next ~5 seconds.
+        return back()->with('undo_block', [
+            'sender' => $sender,
+            'message' => "{$request->sender_email} blocked.",
+        ]);
     }
 
     public function destroy(Request $request)

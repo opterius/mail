@@ -269,6 +269,40 @@
         </section>
         @endif
 
+        {{-- Blocked Senders --}}
+        <section class="max-w-xl mt-10" id="blocked-senders">
+            <h2 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Blocked Senders</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                Mail from these addresses goes straight to the Screener and never lands in your inbox.
+                Unblock to start letting their messages through again.
+            </p>
+
+            @if(($blockedSenders ?? collect())->isEmpty())
+                <div class="p-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-500 dark:text-gray-400">
+                    You have not blocked any senders yet.
+                </div>
+            @else
+                <ul class="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    @foreach($blockedSenders as $bs)
+                        <li class="flex items-center gap-3 px-4 py-2.5 bg-white dark:bg-gray-900">
+                            <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"/>
+                            </svg>
+                            <span class="flex-1 text-sm text-gray-700 dark:text-gray-300 truncate">{{ $bs->sender_email }}</span>
+                            <form method="POST" action="{{ route('screener.destroy') }}" class="inline">
+                                @csrf @method('DELETE')
+                                <input type="hidden" name="sender_email" value="{{ $bs->sender_email }}">
+                                <button type="submit"
+                                        class="px-3 py-1 text-[13px] font-medium bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition-colors">
+                                    Unblock
+                                </button>
+                            </form>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </section>
+
     </div>
 
 </div>

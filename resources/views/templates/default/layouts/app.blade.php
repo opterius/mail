@@ -332,6 +332,15 @@
                 </svg>
                 Settings
             </a>
+            <a href="{{ route('help') }}"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+                      {{ request()->routeIs('help') ? 'bg-orange-50 dark:bg-orange-900/25 text-orange-600 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200' }}">
+                <svg class="w-4.5 h-4.5 flex-shrink-0" style="width:18px;height:18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Help
+            </a>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit"
@@ -486,6 +495,8 @@
 </script>
 
 @stack('scripts')
+
+@include(mailView('partials.undo-toast'))
 
 </body>
 </html>
