@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 
 class SenderStat extends Model
 {
@@ -46,12 +45,13 @@ class SenderStat extends Model
             ['first_seen_at' => $now],
         );
 
-        $updates = [$field => DB::raw("`{$field}` + " . (int) $by)];
-        if ($timestampField) {
-            $updates[$timestampField] = $now;
-        }
-        // updated_at refresh as well.
-        $row->update($updates);
+        // increment() runs an atomic UPDATE field = field + n in SQL and
+        // also persists the extra attributes, without leaving a raw
+        // Expression in the model's in-memory casted attributes - which
+        // is what blew up the message view: integer cast tripped over
+        // the Expression on the second read of $row->received_count.
+        $extras = $timestampField ? [$timestampField => $now] : [];
+        $row->increment($field, (int) $by, $extras);
     }
 
     public static function for(string $userEmail, string $senderEmail): ?self
