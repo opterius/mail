@@ -489,8 +489,52 @@
         Notification.requestPermission();
     }
 
-    // First check after 45 s, then every 45 s
-    setInterval(checkNew, 45000);
+    // ── Adaptive new-mail polling ────────────────────────────────────────
+    // A fixed 45 s setInterval was opening one IMAP STATUS round trip per
+    // user per ~45 s regardless of whether anyone was looking at the tab.
+    // At scale (10k+ active sessions) that becomes the dominant load on
+    // the IMAP server. Adaptive cadence cuts most of it:
+    //
+    //   - visible tab + recent user activity -> 45 s   (snappy)
+    //   - tab hidden in background           -> 5 min  (slow probe)
+    //   - no user activity for > 1 hour      -> paused (walked away)
+    //
+    // Any visibility change or input event re-arms the timer with the
+    // appropriate interval and triggers an immediate check so the user
+    // never sees stale state on return.
+    var POLL_FAST_MS   = 45000;
+    var POLL_SLOW_MS   = 300000;       // 5 min when hidden
+    var IDLE_AFTER_MS  = 3600000;      // 1 h with no input = paused
+    var pollTimer      = null;
+    var lastActivity   = Date.now();
+
+    function currentInterval() {
+        if (Date.now() - lastActivity > IDLE_AFTER_MS) return 0;        // paused
+        return document.visibilityState === 'hidden' ? POLL_SLOW_MS : POLL_FAST_MS;
+    }
+
+    function schedule() {
+        if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+        var ms = currentInterval();
+        if (ms > 0) pollTimer = setTimeout(tick, ms);
+    }
+    function tick() { checkNew(); schedule(); }
+
+    function reset(immediate) {
+        lastActivity = Date.now();
+        if (immediate) checkNew();
+        schedule();
+    }
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') reset(true);
+        else schedule();
+    });
+    ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(function (ev) {
+        window.addEventListener(ev, function () { reset(false); }, { passive: true });
+    });
+
+    schedule();
 })();
 </script>
 
