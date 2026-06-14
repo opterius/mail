@@ -25,6 +25,7 @@ namespace App\Http\Controllers;
 
 use App\Auth\ImapGuard;
 use App\Services\ImapConnection;
+use App\Services\MailboxListCache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -105,6 +106,10 @@ class FolderController extends Controller
             return back()->with('error', 'Could not create folder. It may already exist.');
         }
 
+        /** @var ImapGuard $guard */
+        $guard = auth('web');
+        MailboxListCache::forget(auth('web')->getImapLogin());
+
         return back()->with('success', 'Folder "' . $validated['name'] . '" created.');
     }
 
@@ -142,6 +147,8 @@ class FolderController extends Controller
             return back()->with('error', 'Could not rename folder.');
         }
 
+        MailboxListCache::forget(auth('web')->getImapLogin());
+
         return redirect()->route('folder', ['folder' => rawurlencode($validated['new_name'])])
             ->with('success', 'Folder renamed to "' . $validated['new_name'] . '".');
     }
@@ -175,6 +182,8 @@ class FolderController extends Controller
         if (!$ok) {
             return back()->with('error', 'Could not delete folder. Make sure it contains no messages.');
         }
+
+        MailboxListCache::forget(auth('web')->getImapLogin());
 
         return redirect()->route('inbox')
             ->with('success', 'Folder "' . $validated['name'] . '" deleted.');

@@ -20,6 +20,11 @@ return new class extends Migration {
             $table->enum('status', ['pending', 'sent', 'failed'])->default('pending')->index();
             $table->text('error')->nullable();
             $table->timestamps();
+            // Hot path: ProcessScheduledEmails worker scans
+            //   WHERE status = 'pending' AND send_at <= NOW()
+            // every minute. With (status) alone it scans every pending row;
+            // the composite lets it short-circuit on the send_at range.
+            $table->index(['status', 'send_at'], 'scheduled_emails_status_send_at_idx');
         });
     }
 

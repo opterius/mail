@@ -25,6 +25,7 @@ namespace App\Http\Controllers;
 
 use App\Auth\ImapGuard;
 use App\Services\ImapConnection;
+use App\Services\MailboxListCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -62,11 +63,10 @@ class SearchController extends Controller
             );
             $imap->login($guard->getImapLogin(), $guard->getImapPassword());
 
-            $rawFolders = $imap->listFolders();
-            $folders    = array_map(
-                fn(array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
-                $rawFolders
-            );
+            $folders = MailboxListCache::get($guard->getImapLogin(), fn () => array_map(
+                fn (array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
+                $imap->listFolders()
+            ));
 
             if ($hasFilters) {
                 $searchFolder = $folder !== '' ? $folder : 'INBOX';

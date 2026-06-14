@@ -26,6 +26,7 @@ namespace App\Http\Controllers;
 use App\Auth\ImapGuard;
 use App\Models\Contact;
 use App\Services\ImapConnection;
+use App\Services\MailboxListCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -67,13 +68,17 @@ class InboxController extends Controller
 
             $imap->login($login, $password);
 
-            // Folders for sidebar — ensure standard system folders exist, then fetch STATUS
-            $rawFolders = $imap->listFolders();
-            $rawFolders = $this->ensureSystemFolders($imap, $rawFolders);
-            $folders    = array_map(
-                fn(array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
-                $rawFolders
-            );
+            // Folders for sidebar - 30s per-user cache. ensureSystemFolders
+            // runs inside the cache miss branch so it only fires when the
+            // cache is actually being rebuilt (creates folders the very
+            // first time a new mailbox is opened, then becomes a no-op).
+            $folders = MailboxListCache::get($login, function () use ($imap) {
+                $rawFolders = $this->ensureSystemFolders($imap, $imap->listFolders());
+                return array_map(
+                    fn(array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
+                    $rawFolders
+                );
+            });
 
             // Select the requested folder and fetch headers
             $stats      = $imap->selectFolder($folder);

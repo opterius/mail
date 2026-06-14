@@ -216,9 +216,9 @@ class ComposeController extends Controller
             // back-and-forth conversation.
             $isReply = $request->filled('in_reply_to_uid') || $request->filled('original_from');
             foreach ($this->extractRecipientEmails($data['to'], $data['cc'] ?? '') as $rcpt) {
-                \App\Models\SenderStat::bump($email, $rcpt, 'sent_to_count', 1, 'last_sent_to_at');
+                \App\Jobs\BumpSenderStat::dispatch($email, $rcpt, 'sent_to_count', 1, 'last_sent_to_at');
                 if ($isReply) {
-                    \App\Models\SenderStat::bump($email, $rcpt, 'replied_count', 1, 'last_replied_at');
+                    \App\Jobs\BumpSenderStat::dispatch($email, $rcpt, 'replied_count', 1, 'last_replied_at');
                 }
             }
 
@@ -604,10 +604,10 @@ class ComposeController extends Controller
                 timeout:      config('imap.timeout', 10),
             );
             $imap->login($guard->getImapLogin(), $guard->getImapPassword());
-            $folders = array_map(
-                fn(array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
+            $folders = \App\Services\MailboxListCache::get($guard->getImapLogin(), fn () => array_map(
+                fn (array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
                 $imap->listFolders()
-            );
+            ));
             $imap->logout();
             return $folders;
         } catch (\Throwable) {

@@ -18,6 +18,12 @@ return new class extends Migration {
             $table->timestamp('snooze_until');
             $table->timestamps();
             $table->index(['user_email', 'snooze_until']);
+            // Hot path: SnoozedEmail::isSnoozed($userEmail, $uid, $mailbox)
+            // is called on every message view to decide whether to surface
+            // a "still snoozed" banner. Without this composite, the query
+            // falls back to the (user_email) index and table-scans the
+            // user's snoozed rows.
+            $table->index(['user_email', 'mailbox', 'imap_uid'], 'snoozed_emails_user_mailbox_uid_idx');
         });
     }
 

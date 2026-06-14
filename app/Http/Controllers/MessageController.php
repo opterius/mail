@@ -32,6 +32,7 @@ use App\Models\SetAsideEmail;
 use App\Models\SnoozedEmail;
 use App\Services\ContentSanitizer;
 use App\Services\ImapConnection;
+use App\Services\MailboxListCache;
 use App\Services\MimeParser;
 use App\Services\SenderReputation;
 use Illuminate\Http\Request;
@@ -59,11 +60,12 @@ class MessageController extends Controller
             );
             $imap->login($login, $password);
 
-            // Folders for sidebar
-            $folders = array_map(
-                fn(array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
+            // Folders for sidebar - cached 30s per user. Saves 1 + N IMAP
+            // round trips per page load (LIST + STATUS per folder).
+            $folders = MailboxListCache::get($login, fn () => array_map(
+                fn (array $f) => array_merge($f, $imap->getFolderStatus($f['name'])),
                 $imap->listFolders()
-            );
+            ));
 
             $imap->selectFolder($folder);
 
@@ -110,8 +112,13 @@ class MessageController extends Controller
         // 'received' per uid by checking whether SenderStat existed
         // before this view; first_seen_at on creation means this is
         // an idempotent enough proxy for new-message arrival.
+        //
+        // Pushed to the queue so the message view does not pay for the
+        // 3 DB queries SenderStat::bump runs (SELECT + maybe INSERT +
+        // UPDATE). The badge below reads previously persisted counters;
+        // a second of staleness on this very bump is invisible.
         if ($senderEmail) {
-            SenderStat::bump($userEmail, $senderEmail, 'received_count', 1, 'last_received_at');
+            \App\Jobs\BumpSenderStat::dispatch($userEmail, $senderEmail, 'received_count', 1, 'last_received_at');
         }
 
         $note        = EmailNote::where('user_email', $userEmail)->where('imap_uid', $uidInt)->where('mailbox', $folder)->first();
