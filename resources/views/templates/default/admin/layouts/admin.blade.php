@@ -67,6 +67,7 @@
                 {!! $navItem('admin.groups.index', 'Groups') !!}
                 {!! $navItem('admin.logs.index', 'Logs') !!}
                 {!! $navItem('admin.settings.index', 'Settings') !!}
+                {!! $navItem('admin.security.index', 'Security') !!}
 
                 {{-- Panel-mode only items --}}
                 @if(config('mail-ui.admin_mode'))

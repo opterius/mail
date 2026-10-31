@@ -25,11 +25,18 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
+use App\Services\TotpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
+    /** Seconds the person has between the password and the code. */
+    private const TWO_FACTOR_WINDOW = 300;
+
+    /** Wrong codes allowed before the person has to type the password again. */
+    private const TWO_FACTOR_TRIES = 5;
+
     // ------------------------------------------------------------------
     // Setup — first admin (runs only when admins table is empty)
     // ------------------------------------------------------------------
@@ -80,12 +87,29 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (!Auth::guard('admin')->attempt($credentials, $request->boolean('remember'))) {
+        $guard = Auth::guard('admin');
+
+        if (!$guard->validate($credentials)) {
             return back()
                 ->withInput($request->only('username'))
                 ->withErrors(['username' => 'Invalid username or password.']);
         }
 
+        // With the second factor on, the password alone does not log in: nothing is logged in until the code is right.
+        $admin = $guard->getLastAttempted();
+        if ($admin instanceof Admin && $admin->hasTwoFactorEnabled()) {
+            $request->session()->regenerate();
+            $request->session()->put('admin_2fa_pending', [
+                'id'       => $admin->id,
+                'remember' => $request->boolean('remember'),
+                'at'       => now()->getTimestamp(),
+                'tries'    => 0,
+            ]);
+
+            return redirect()->route('admin.2fa');
+        }
+
+        $guard->attempt($credentials, $request->boolean('remember'));
         $request->session()->regenerate();
 
         return redirect()->route('admin.dashboard');
@@ -100,16 +124,70 @@ class AuthController extends Controller
     }
 
     // ------------------------------------------------------------------
-    // 2FA (placeholder — implemented when 2FA feature is built)
+    // 2FA: the code (or a recovery code) asked after a right password
     // ------------------------------------------------------------------
 
-    public function show2fa()
+    public function show2fa(Request $request)
     {
+        if ($this->pendingTwoFactor($request) === null) {
+            return redirect()->route('admin.login');
+        }
+
         return view(mailView('admin.auth.2fa'));
     }
 
     public function verify2fa(Request $request)
     {
+        $pending = $this->pendingTwoFactor($request);
+        if ($pending === null) {
+            return redirect()->route('admin.login')
+                ->withErrors(['username' => 'The sign-in expired. Enter the password again.']);
+        }
+
+        $request->validate(['code' => ['required', 'string', 'max:32']]);
+
+        $admin = Admin::find($pending['id']);
+        if (!$admin || !$admin->hasTwoFactorEnabled()) {
+            $request->session()->forget('admin_2fa_pending');
+
+            return redirect()->route('admin.login');
+        }
+
+        $code  = trim((string) $request->input('code'));
+        $valid = preg_match('/^\d{3}\s?\d{3}$/', $code)
+            ? (new TotpService())->verify($admin->two_factor_secret, $code)
+            : $admin->useRecoveryCode($code);
+
+        if (!$valid) {
+            $pending['tries']++;
+            if ($pending['tries'] >= self::TWO_FACTOR_TRIES) {
+                $request->session()->forget('admin_2fa_pending');
+
+                return redirect()->route('admin.login')
+                    ->withErrors(['username' => 'Too many wrong codes. Enter the password again.']);
+            }
+            $request->session()->put('admin_2fa_pending', $pending);
+
+            return back()->withErrors(['code' => 'Invalid code.']);
+        }
+
+        $request->session()->forget('admin_2fa_pending');
+        Auth::guard('admin')->login($admin, $pending['remember']);
+        $request->session()->regenerate();
+
         return redirect()->route('admin.dashboard');
+    }
+
+    /** The sign-in that waits for its code, or null (none, or older than the window). */
+    private function pendingTwoFactor(Request $request): ?array
+    {
+        $pending = $request->session()->get('admin_2fa_pending');
+        if (!is_array($pending) || now()->getTimestamp() - ($pending['at'] ?? 0) > self::TWO_FACTOR_WINDOW) {
+            $request->session()->forget('admin_2fa_pending');
+
+            return null;
+        }
+
+        return $pending;
     }
 }

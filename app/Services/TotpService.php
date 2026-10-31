@@ -77,6 +77,15 @@ class TotpService
     }
 
     /**
+     * The code that is valid at a moment (now by default). Used by the tests, and by anything that has to show
+     * what an authenticator app would show.
+     */
+    public function code(string $secret, ?int $time = null): string
+    {
+        return $this->hotp($this->base32Decode($secret), (int) floor(($time ?? time()) / self::PERIOD));
+    }
+
+    /**
      * Generate 10 one-time recovery codes (each is a 10-character hex string).
      *
      * @return string[]

@@ -51,8 +51,11 @@ class Admin extends Authenticatable
     protected function casts(): array
     {
         return [
-            'password'               => 'hashed',
-            'two_factor_enabled_at'  => 'datetime',
+            'password'                  => 'hashed',
+            // the secret and the recovery codes are encrypted with the key of the application
+            'two_factor_secret'         => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted',
+            'two_factor_enabled_at'     => 'datetime',
         ];
     }
 
@@ -60,5 +63,44 @@ class Admin extends Authenticatable
     {
         return $this->two_factor_enabled_at !== null
             && $this->two_factor_secret !== null;
+    }
+
+    /** The unused recovery codes. */
+    public function recoveryCodes(): array
+    {
+        $codes = json_decode((string) $this->two_factor_recovery_codes, true);
+
+        return is_array($codes) ? array_values($codes) : [];
+    }
+
+    /** Uses a recovery code (it works once). True when the code was one of the unused ones. */
+    public function useRecoveryCode(string $code): bool
+    {
+        $clean = strtoupper(str_replace('-', '', preg_replace('/\s+/', '', $code)));
+        if ($clean === '') {
+            return false;
+        }
+
+        $codes = $this->recoveryCodes();
+        foreach ($codes as $i => $stored) {
+            if (hash_equals(strtoupper(str_replace('-', '', $stored)), $clean)) {
+                unset($codes[$i]);
+                $this->forceFill(['two_factor_recovery_codes' => json_encode(array_values($codes))])->save();
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Turns the second factor off and forgets the secret and the codes. */
+    public function clearTwoFactor(): void
+    {
+        $this->forceFill([
+            'two_factor_secret'         => null,
+            'two_factor_recovery_codes' => null,
+            'two_factor_enabled_at'     => null,
+        ])->save();
     }
 }

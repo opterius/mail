@@ -32,6 +32,7 @@ use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Admin\QueueController;
+use App\Http\Controllers\Admin\SecurityController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SpamController;
 use App\Http\Controllers\Admin\UsageController;
@@ -53,7 +54,8 @@ Route::prefix(config('mail-ui.admin_prefix', 'admin'))->name('admin.')->middlewa
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     Route::get('/2fa', [AuthController::class, 'show2fa'])->name('2fa');
-    Route::post('/2fa', [AuthController::class, 'verify2fa'])->name('2fa.verify');
+    Route::post('/2fa', [AuthController::class, 'verify2fa'])->name('2fa.verify')
+         ->middleware('throttle:10,1');
 
     // ------------------------------------------------------------------
     // Authenticated admin routes
@@ -122,5 +124,12 @@ Route::prefix(config('mail-ui.admin_prefix', 'admin'))->name('admin.')->middlewa
         Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
         Route::get('/settings/export', [ExportController::class, 'index'])->name('settings.export');
+
+        // Security: the second factor (TOTP) of the admin account
+        Route::get('/security', [SecurityController::class, 'index'])->name('security.index');
+        Route::post('/security/2fa/enable', [SecurityController::class, 'enable'])->name('security.2fa.enable')
+             ->middleware('throttle:10,1');
+        Route::post('/security/2fa/disable', [SecurityController::class, 'disable'])->name('security.2fa.disable')
+             ->middleware('throttle:10,1');
     });
 });
